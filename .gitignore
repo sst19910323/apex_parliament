@@ -1,0 +1,21 @@
+# Python cache
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Data & results (generated at runtime)
+data/
+backtest/
+results/
+
+# Logs
+*.log
+
+# Excel / local files
+*.xlsx
+*.xls
+
+# Environment
+.env
+*.env

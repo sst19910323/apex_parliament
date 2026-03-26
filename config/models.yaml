@@ -1,0 +1,53 @@
+# models.yaml 文件内容
+default_model: "qwen3.5-plus"
+
+models:
+  # --- Qwen 配置 (DashScope / 兼容模式) ---
+  qwen3-max:
+    name: "qwen3-max"
+    api_key: "your_dashscope_api_key"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model_id: "qwen3-max"
+    temperature: 0.8
+    timeout: 180
+
+  qwen3.5-plus:
+    name: "qwen3.5-plus"
+    api_key: "your_dashscope_api_key"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model_id: "qwen3.5-plus"
+    temperature: 0.3
+    timeout: 180
+  
+  # --- Deepseek 配置 ---
+  deepseek:
+    name: "deepseek"
+    api_key: "your_deepseek_api_key"
+    base_url: "https://api.deepseek.com/v1" 
+    model_id: "deepseek-chat"
+    temperature: 0.8
+    timeout: 180
+
+  # --- Grok 配置 (OpenAI 兼容) ---
+  grok: 
+    name: "Grok API Test (OpenAI Compatible)"
+    service: "Grok"
+    api_key: "your_xai_api_key"
+    base_url: "https://api.x.ai/v1"
+    model_id: "grok-4-fast-reasoning"
+    
+  # --- Gemini 配置 (OpenAI 兼容) ---
+  gemini: 
+    name: "Gemini API Test (OpenAI Compatible)"
+    service: "Gemini"
+    api_key: "your_gemini_api_key"
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai"
+    model_id: "gemini-2.5-flash"
+
+  kimi:
+    name: "kimi"
+    api_key: "your_moonshot_api_key"
+    base_url: "https://api.moonshot.cn/v1"
+    model_id: "kimi-k2-thinking-turbo"
+    temperature: 0.6
+    timeout: 180

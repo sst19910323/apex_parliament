@@ -1,0 +1,36 @@
+# Web framework for building the API
+fastapi
+
+# ASGI server to run FastAPI
+uvicorn[standard]
+
+# Data validation and settings management
+pydantic
+
+# Data manipulation and analysis library
+pandas
+
+# Technical analysis library built on pandas
+pandas-ta
+
+# OpenAI API client library (used for Deepseek API calls)
+openai
+
+# Library for making HTTP requests (used by various fetchers)
+requests
+
+# --- New Dependencies for Fear & Greed Fetcher ---
+cloudscraper
+beautifulsoup4
+PyYAML
+
+# --- Scheduling & Calendars ---
+pandas_market_calendars
+apscheduler
+
+# --- Analysis & Agents ---
+statsmodels
+langgraph
+
+# --- Brokerage (Optional) ---
+# ibapi

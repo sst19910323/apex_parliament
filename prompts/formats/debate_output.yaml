@@ -1,0 +1,133 @@
+# -----------------------------------------------------------------
+# 文件路径: prompts/formats/debate_output.yaml
+# 辩论阶段输出格式（XML版 - 初始化 + 三方辩论）
+# AI输出XML，解析端机械转换为JSON存储
+# -----------------------------------------------------------------
+
+# ── 心态枚举表（供字段说明引用）──
+mentality_enum: &mentality_list |
+  可选心态 (name字段取值):
+    buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively /
+    cut_losses_reluctantly / hold_and_ride_profit / trapped_hold /
+    wait_for_confirmation / wait_and_see / avoid_uncertainty /
+    bottom_fishing / short_squeeze_chase / sell_on_strength /
+    hedge_position / average_down / average_up / all_in /
+    rotate_sector / deleveraging / contrarian_bet
+
+# ── 三方初始化共用 ──
+init_output: |
+  请严格按以下XML格式输出，不要输出任何XML以外的内容：
+
+  <response>
+    <debate_intensity>MEDIUM</debate_intensity>
+    <action>65</action>
+    <operation_type>MARKET_ENTRY</operation_type>
+    <operation_target>MARKET</operation_target>
+    <operation_volume>STANDARD_SIZE</operation_volume>
+    <mentality>
+      <item name="buy_the_dip" probability="0.7"/>
+      <item name="hold_and_ride_profit" probability="0.3"/>
+    </mentality>
+    <summary_statement><![CDATA[一句话总结你的核心观点]]></summary_statement>
+    <analysis_text><![CDATA[你的独立分析正文]]></analysis_text>
+  </response>
+
+  ## 字段说明
+  - debate_intensity: LOW / MEDIUM / HIGH，你预期的辩论烈度
+  - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
+  - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
+  - operation_target: "MARKET" / 具体价格 / "N/A"
+  - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
+  - mentality: 1-5种最终心态及概率，列出显著项即可（总和通常为1，若心态复杂可略小于1，忽略极小项）
+    可选心态name: buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively / cut_losses_reluctantly / hold_and_ride_profit / trapped_hold / wait_for_confirmation / wait_and_see / avoid_uncertainty / bottom_fishing / short_squeeze_chase / sell_on_strength / hedge_position / average_down / average_up / all_in / rotate_sector / deleveraging / contrarian_bet
+  - summary_statement: 用CDATA包裹，一句话核心观点
+  - analysis_text: 用CDATA包裹，你的独立分析和初始方案，这是第一轮，没有对方观点需要回应
+
+# ── Zealot辩论阶段 ──
+zealot_debate_output: |
+  请严格按以下XML格式输出，不要输出任何XML以外的内容：
+
+  <response>
+    <debate_intensity>MEDIUM</debate_intensity>
+    <action>65</action>
+    <operation_type>MARKET_ENTRY</operation_type>
+    <operation_target>MARKET</operation_target>
+    <operation_volume>STANDARD_SIZE</operation_volume>
+    <mentality>
+      <item name="buy_the_dip" probability="0.7"/>
+      <item name="hold_and_ride_profit" probability="0.3"/>
+    </mentality>
+    <summary_statement><![CDATA[一句话总结你的核心观点]]></summary_statement>
+    <analysis_text><![CDATA[你的分析正文]]></analysis_text>
+  </response>
+
+  ## 字段说明
+  - debate_intensity: LOW / MEDIUM / HIGH
+  - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
+  - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
+  - operation_target: "MARKET" / 具体价格 / "N/A"
+  - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
+  - mentality: 1-5种最终心态及概率，列出显著项即可（总和通常为1，若心态复杂可略小于1，忽略极小项）
+    可选心态name: buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively / cut_losses_reluctantly / hold_and_ride_profit / trapped_hold / wait_for_confirmation / wait_and_see / avoid_uncertainty / bottom_fishing / short_squeeze_chase / sell_on_strength / hedge_position / average_down / average_up / all_in / rotate_sector / deleveraging / contrarian_bet
+  - summary_statement: 用CDATA包裹，一句话核心观点
+  - analysis_text: 用CDATA包裹，辩论正文，优先针对当前争议点深入讨论。可以部分认同对方、可以反驳、可以更新自己的观点。把问题讨论清楚，只有陷入僵局才开辟新战场。
+
+# ── Reaper辩论阶段 ──
+reaper_debate_output: |
+  请严格按以下XML格式输出，不要输出任何XML以外的内容：
+
+  <response>
+    <debate_intensity>MEDIUM</debate_intensity>
+    <action>35</action>
+    <operation_type>TRIM_POSITION</operation_type>
+    <operation_target>MARKET</operation_target>
+    <operation_volume>STANDARD_SIZE</operation_volume>
+    <mentality>
+      <item name="profit_taking" probability="0.7"/>
+      <item name="wait_for_confirmation" probability="0.3"/>
+    </mentality>
+    <summary_statement><![CDATA[一句话总结你的核心观点]]></summary_statement>
+    <analysis_text><![CDATA[你的分析正文]]></analysis_text>
+  </response>
+
+  ## 字段说明
+  - debate_intensity: LOW / MEDIUM / HIGH
+  - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
+  - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
+  - operation_target: "MARKET" / 具体价格 / "N/A"
+  - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
+  - mentality: 1-5种最终心态及概率，列出显著项即可（总和通常为1，若心态复杂可略小于1，忽略极小项）
+    可选心态name: buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively / cut_losses_reluctantly / hold_and_ride_profit / trapped_hold / wait_for_confirmation / wait_and_see / avoid_uncertainty / bottom_fishing / short_squeeze_chase / sell_on_strength / hedge_position / average_down / average_up / all_in / rotate_sector / deleveraging / contrarian_bet
+  - summary_statement: 用CDATA包裹，一句话核心观点
+  - analysis_text: 用CDATA包裹，辩论正文，优先针对当前争议点深入讨论。可以部分认同对方、可以反驳、可以更新自己的观点。把问题讨论清楚，只有陷入僵局才开辟新战场。
+
+# ── Fulcrum辩论阶段（含主持职责）──
+fulcrum_debate_output: |
+  请严格按以下XML格式输出，不要输出任何XML以外的内容：
+
+  <response>
+    <debate_intensity>MEDIUM</debate_intensity>
+    <action>50</action>
+    <operation_type>HOLD_NEUTRAL</operation_type>
+    <operation_target>N/A</operation_target>
+    <operation_volume>N/A</operation_volume>
+    <mentality>
+      <item name="wait_for_confirmation" probability="0.6"/>
+      <item name="buy_the_dip" probability="0.4"/>
+    </mentality>
+    <summary_statement><![CDATA[一句话总结你的核心观点]]></summary_statement>
+    <analysis_text><![CDATA[你的分析正文]]></analysis_text>
+    <decision>CONTINUE</decision>
+  </response>
+
+  ## 字段说明
+  - debate_intensity: LOW / MEDIUM / HIGH
+  - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
+  - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
+  - operation_target: "MARKET" / 具体价格 / "N/A"
+  - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
+  - mentality: 1-5种最终心态及概率，列出显著项即可（总和通常为1，若心态复杂可略小于1，忽略极小项）
+    可选心态name: buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively / cut_losses_reluctantly / hold_and_ride_profit / trapped_hold / wait_for_confirmation / wait_and_see / avoid_uncertainty / bottom_fishing / short_squeeze_chase / sell_on_strength / hedge_position / average_down / average_up / all_in / rotate_sector / deleveraging / contrarian_bet
+  - summary_statement: 用CDATA包裹，一句话核心观点
+  - analysis_text: 用CDATA包裹，辩论正文，包括对Zealot和Reaper的回应（认同/反驳/质疑）以及你自己的立场更新。优先针对当前争议点，只有僵局才开辟新战场。
+  - decision: CONTINUE=继续辩论，TERMINATE=结束辩论进入最终报告。判断依据：共识是否达成、是否陷入无效复读、是否达到轮次上限。

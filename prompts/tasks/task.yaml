@@ -1,0 +1,102 @@
+# -----------------------------------------------------------------
+# 文件路径: prompts/tasks/task.yaml
+# 任务指令 + 数据模板
+# -----------------------------------------------------------------
+
+init_task: |
+  ## 初始化分析
+  标的：{symbol}
+  
+  这是第一轮，请独立分析并给出你的初始方案。
+  
+  ## 原始数据
+  {raw_data}
+
+# 辩论任务
+debate_task: |
+  ## 第 {turn} 轮辩论
+  标的：{symbol}
+  
+  请基于原始数据和辩论记录，发表你这一轮的观点。
+  
+  ## 原始数据
+  {raw_data}
+  
+  ## 辩论记录
+  {debate_history}
+
+# 最终报告任务（Fulcrum专用）
+finalize_task: |
+  ## 最终报告
+  标的：{symbol}
+  
+  辩论已结束，请撰写最终裁决报告。
+  
+  ## 原始数据
+  {raw_data}
+  
+  ## 辩论记录
+  {debate_history}
+
+# 签章任务（Zealot和Reaper专用）
+signoff_task: |
+  ## 签章确认
+  标的：{symbol}
+  
+  最终报告已出炉，请确认你的最终立场。
+  
+  ## Fulcrum的最终报告
+  {final_report}
+  
+  ## 你的任务
+  1. 确认你的最终action数值
+  2. 如有保留意见，简要说明（一两句话）
+
+# -----------------------------------------------------------------
+# 原始数据模板
+# -----------------------------------------------------------------
+
+# Stock
+raw_data_stock: |
+  ### 宏观市场背景
+  - 宏观与政治新闻: {general_news_data}
+  - 经济基本面: {macro_data}
+  - 市场情绪: {fear_greed_data}
+  - 标普500技术分析: {spx_data}
+  - 纳斯达克100技术分析: {ndx_data}
+  - 道琼斯工业指数技术分析: {indu_data}
+
+  ### 标的专属数据
+  - 标的: {symbol}
+  - 公司概况: {profile_data}
+  - 技术面: {tech_data}
+  - 基本面: {fundamentals_data}
+  - 新闻: {news_data}
+
+# ETF
+raw_data_etf: |
+  ### 宏观市场背景
+  - 宏观与政治新闻: {general_news_data}
+  - 经济基本面: {macro_data}
+  - 市场情绪: {fear_greed_data}
+  - 标普500技术分析: {spx_data}
+  - 纳斯达克100技术分析: {ndx_data}
+  - 道琼斯工业指数技术分析: {indu_data}
+
+  ### 标的专属数据
+  - 标的: {symbol}
+  - ETF概况: {profile_data}
+  - 技术面: {tech_data}
+  - 新闻: {news_data}
+
+# General（宏观市场分析）
+raw_data_general: |
+  ### 宏观市场背景
+  - 宏观与政治新闻: {general_news_data}
+  - 经济基本面: {macro_data}
+  - 市场情绪: {fear_greed_data}
+  - 标普500技术分析: {spx_data}
+  - 纳斯达克100技术分析: {ndx_data}
+  - 道琼斯工业指数技术分析: {indu_data}
+
+  注：这是宏观市场分析，operation_target请填写纳斯达克(NDX)预期点位。

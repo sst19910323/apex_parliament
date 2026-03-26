@@ -1,0 +1,124 @@
+# -----------------------------------------------------------------
+# 文件路径: prompts/formats/final_report_output.yaml
+# 最终报告输出格式（XML版 - 仅Fulcrum）
+# -----------------------------------------------------------------
+
+final_report_output: |
+  请严格按以下XML格式输出，不要输出任何XML以外的内容：
+
+  <final_report>
+    <debate_summary><![CDATA[整场辩论的总结]]></debate_summary>
+    <debate_summary_en><![CDATA[English version of debate summary]]></debate_summary_en>
+
+    <mentality>
+      <item name="buy_the_dip" probability="0.7"/>
+      <item name="wait_for_confirmation" probability="0.3"/>
+    </mentality>
+
+    <reasoning>
+      <key_drivers>
+        <driver direction="bullish" category="technical" weight="high">
+          <factor><![CDATA[驱动因素名称]]></factor>
+          <factor_en><![CDATA[Driver name]]></factor_en>
+          <evidence><![CDATA[具体证据1]]></evidence>
+          <evidence><![CDATA[具体证据2]]></evidence>
+          <evidence_en><![CDATA[Evidence 1]]></evidence_en>
+          <evidence_en><![CDATA[Evidence 2]]></evidence_en>
+        </driver>
+      </key_drivers>
+      <risks>
+        <risk probability="medium" impact="high">
+          <description><![CDATA[风险描述]]></description>
+          <description_en><![CDATA[Risk description]]></description_en>
+          <mitigation><![CDATA[缓释措施]]></mitigation>
+          <mitigation_en><![CDATA[Mitigation action]]></mitigation_en>
+          <trigger><![CDATA[监控触发条件]]></trigger>
+          <trigger_en><![CDATA[Monitoring trigger]]></trigger_en>
+        </risk>
+      </risks>
+    </reasoning>
+
+    <risk_management>
+      <stop_loss><![CDATA[止损条件或价位]]></stop_loss>
+      <stop_loss_en><![CDATA[Stop loss condition]]></stop_loss_en>
+      <take_profit><![CDATA[止盈条件或价位]]></take_profit>
+      <take_profit_en><![CDATA[Take profit condition]]></take_profit_en>
+      <max_drawdown_tolerance>X%</max_drawdown_tolerance>
+      <review_triggers>
+        <trigger><![CDATA[复盘触发条件1]]></trigger>
+        <trigger><![CDATA[条件2]]></trigger>
+      </review_triggers>
+      <review_triggers_en>
+        <trigger><![CDATA[Trigger 1]]></trigger>
+        <trigger><![CDATA[Trigger 2]]></trigger>
+      </review_triggers_en>
+    </risk_management>
+
+    <action>65</action>
+    <operation_type>MARKET_ENTRY</operation_type>
+    <operation_target>MARKET</operation_target>
+    <operation_volume>STANDARD_SIZE</operation_volume>
+
+    <dissent>
+      <zealot_final_action>75</zealot_final_action>
+      <zealot_reservation><![CDATA[Zealot的保留意见，若无填"无"]]></zealot_reservation>
+      <reaper_final_action>40</reaper_final_action>
+      <reaper_reservation><![CDATA[Reaper的保留意见，若无填"无"]]></reaper_reservation>
+    </dissent>
+
+    <statement><![CDATA[最终高确信度宣言]]></statement>
+    <statement_en><![CDATA[Final high conviction statement]]></statement_en>
+  </final_report>
+
+  ## 字段说明
+
+  ### 辩论总结
+  - debate_summary / debate_summary_en: 整场辩论的总结，必须包括各方立场的演变轨迹、关键争议点、达成的共识、保留的分歧，以及Fulcrum最终定action和operation的核心理由
+
+  ### 心态
+  - mentality: 1-5种最终心态及概率，列出显著项即可（总和通常为1，若心态复杂可略小于1，忽略极小项）
+    可选心态name: buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively / cut_losses_reluctantly / hold_and_ride_profit / trapped_hold / wait_for_confirmation / wait_and_see / avoid_uncertainty / bottom_fishing / short_squeeze_chase / sell_on_strength / hedge_position / average_down / average_up / all_in / rotate_sector / deleveraging / contrarian_bet
+
+  ### 逻辑支撑
+  - key_drivers: 核心驱动因素
+      * direction属性: bullish / bearish
+      * category属性: technical / fundamental / macro / news
+      * weight属性: high / medium / low
+      * evidence: 必须是raw_data中的具体数据，严禁模糊表述
+  - risks: 风险因素
+      * probability / impact属性: high / medium / low
+      * mitigation: 缓释措施
+      * trigger: 需要监控的触发条件
+
+  ### 风控
+  - risk_management: 止损/止盈条件必须明确具体（如"跌破$150"），不能模糊
+
+  ### 核心决策
+  - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
+  - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
+  - operation_target: "MARKET" / 具体价格 / "N/A"
+  - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
+
+  ### 分歧记录
+  - dissent: 记录Zealot和Reaper的最终立场及保留意见
+
+  ### 最终宣言
+  - statement / statement_en: 一句话高确信度宣言，概括最终决策的核心理由
+
+  ## 重要原则
+  - action必须在 [reaper_final_action, zealot_final_action] 区间内（包络线原则）
+  - 若Zealot和Reaper已达成共识，必须尊重共识
+  - evidence必须来自raw_data，严禁编造
+  - 报告必须反映辩论的进化轨迹，而非你的独立判断
+
+signoff_output: |
+  请严格按以下XML格式输出，不要输出任何XML以外的内容：
+
+  <signoff>
+    <final_action>75</final_action>
+    <reservation><![CDATA[对Fulcrum最终报告的保留意见；若无异议可留空或简单确认]]></reservation>
+  </signoff>
+
+  ## 字段说明
+  - final_action: 你的最终action数值（0-100整数），代表你在整场辩论结束后的最终立场
+  - reservation: 对Fulcrum最终报告的保留意见（一两句话）；若无异议可留空或简单确认

@@ -1,0 +1,247 @@
+# =============================================================================
+# Analysis Targets Configuration
+# (定义了 'horizon_sentinel.py' 和 'data_scheduler.py' 要处理的对象)
+# =============================================================================
+
+analysis_targets:
+  # Stocks - require market data + news + fundamentals
+  stocks:
+    - AAPL     # Apple Inc.
+    - MSFT     # Microsoft Corporation
+    - GOOGL    # Alphabet Inc. Class A
+    - AMZN     # Amazon.com Inc.
+    - NVDA     # NVIDIA Corporation
+    - AMD      # Advanced Micro Devices, Inc. (Semiconductors)
+    - AVGO     # Broadcom Inc. (Semiconductors)
+    - MU       # Micron Technology (HBM/Memory)
+    - TSLA     # Tesla Inc.
+    - META     # Meta Platforms Inc.
+    - ADBE     # Adobe Inc. (SaaS/AI App)
+    - JPM      # JPMorgan Chase & Co. (Financials)
+    - UNH      # UnitedHealth Group Inc. (Healthcare)
+    - BRK.B    # Berkshire Hathaway Inc. Class B
+    - SNPS     # Synopsys Inc. (EDA Software)
+    - CEG      # Constellation Energy Corp (Utilities/Nuclear)
+    - VST      # Vistra Corp (Utilities/Nuclear)
+  
+  # ETFs - require market data + news
+  etfs:
+    - SPY      # SPDR S&P 500 ETF Trust
+    - QQQ      # Invesco QQQ Trust (Nasdaq-100)
+    - GLD      # SPDR Gold Shares
+  
+  # Indices - only require market data (as market reference indicators)
+  indices:
+    - SPX      # S&P 500 Index
+    - NDX      # Nasdaq-100 Index
+    - INDU     # Dow Jones Industrial Average
+
+
+# =============================================================================
+# Data Requirements Definition
+# (此部分定义了每种类型需要哪些数据)
+# =============================================================================
+
+data_requirements:
+  stocks:
+    - market_data
+    - news
+    - fundamentals
+  
+  etfs:
+    - market_data
+    - news
+  
+  indices:
+    - market_data
+
+
+# =============================================================================
+# TWS/IBKR Contract Configuration (Source of Truth)
+# (此部分是 'horizon_sentinel.py' 用来进行 IBKR Ticker 翻译的)
+# =============================================================================
+
+symbol_contracts:
+  # --------------------------------- Stocks --------------------------------- #
+  AAPL:
+    symbol: AAPL
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Apple Inc."
+  
+  MSFT:
+    symbol: MSFT
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Microsoft Corporation"
+  
+  GOOGL:
+    symbol: GOOGL
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Alphabet Inc. Class A"
+  
+  AMZN:
+    symbol: AMZN
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Amazon.com Inc."
+  
+  NVDA:
+    symbol: NVDA
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "NVIDIA Corporation"
+
+  AMD:
+    symbol: AMD
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Advanced Micro Devices, Inc."
+
+  AVGO:
+    symbol: AVGO
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Broadcom Inc."
+
+  MU:
+    symbol: MU
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Micron Technology"
+  
+  TSLA:
+    symbol: TSLA
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Tesla Inc."
+  
+  META:
+    symbol: META
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Meta Platforms Inc."
+
+  ADBE:
+    symbol: ADBE
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Adobe Inc."
+  
+  JPM:
+    symbol: JPM
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NYSE
+    description: "JPMorgan Chase & Co."
+  
+  UNH:
+    symbol: UNH
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NYSE
+    description: "UnitedHealth Group Inc."
+  
+  BRK.B:
+    symbol: BRK.B
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NYSE
+    description: "Berkshire Hathaway Inc. Class B"
+
+  SNPS:
+    symbol: SNPS
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Synopsys Inc."
+
+  CEG:
+    symbol: CEG
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Constellation Energy Corp"
+
+  VST:
+    symbol: VST
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NYSE
+    description: "Vistra Corp"
+
+  # ---------------------------------- ETFs ---------------------------------- #
+  SPY:
+    symbol: SPY
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: ARCA
+    description: "SPDR S&P 500 ETF Trust"
+  
+  QQQ:
+    symbol: QQQ
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Invesco QQQ Trust"
+  
+  GLD:
+    symbol: GLD
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: ARCA
+    description: "SPDR Gold Shares"
+  
+  # --------------------------------- Indices --------------------------------- #
+  SPX:
+    symbol: SPX
+    sec_type: IND
+    exchange: CBOE
+    currency: USD
+    description: "S&P 500 Index"
+  
+  NDX:
+    symbol: NDX
+    sec_type: IND
+    exchange: NASDAQ
+    currency: USD
+    description: "Nasdaq-100 Index"
+
+  INDU:
+    symbol: INDU
+    sec_type: IND
+    exchange: CME
+    currency: USD
+    description: "Dow Jones Industrial Average"

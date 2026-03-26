@@ -1,0 +1,105 @@
+# ============================================
+# Data Sources Configuration
+# ============================================
+
+data_sources:
+  # Fear & Greed Index
+  fear_greed:
+    cache_dir: data/fear_greed
+    cooldown: 86400
+    max_file_age: 86400  # LLM only searches files within 1 day
+
+  # Economic Indicators (Alpha Vantage)
+  economic_indicators:
+    cache_dir: data/economic
+    cooldown: 86400  # 24 hours
+    max_file_age: 86400  # LLM only searches files within 1 day
+    indicators:
+      - federal_funds_rate
+      - cpi
+      - unemployment
+      - real_gdp
+      - treasury_10y
+      - treasury_2y
+
+  # ETF Profile Data
+  etf_profile:
+    cache_dir: data/profile
+    cooldown: 604800  # 7 days
+    max_file_age: 1209600  # LLM searches files within 14 days (fundamental data changes slowly)
+    fields:
+      - top_holdings
+      - sector_weights
+      - total_assets
+      - expense_ratio
+      - avg_volume
+      - inception_date
+      - tracking_index
+
+  # Finnhub News
+  news:
+    api_key1: "your_finnhub_api_key_1"
+    api_key2: "your_finnhub_api_key_2"
+    cache_dir: data/news
+    cooldown: 10800
+    max_file_age: 86400
+    news_limit: 50
+    days_back: 7
+
+  # Finnhub Fundamentals
+  fundamentals:
+    api_key: "your_finnhub_api_key"
+    cache_dir: data/fundamentals
+    cooldown: 86400
+    max_file_age: 172800  # LLM searches files within 2 days
+
+  alpha_fundamentals:
+    cache_dir: data/fundamentals
+    cooldown: 86400
+    max_file_age: 172800  # LLM searches files within 2 days
+
+  # ============================================
+  # IBKR Market Data
+  # ============================================
+  market_data:
+    cache_dir: data/market_data
+    cooldown: 3000
+    max_file_age: 3600
+    schedules:
+      - label: "2d_1m"
+        duration: "2 D"
+        bar_size: "1 min"
+        filename_duration: "2d"
+        filename_resolution: "1m"
+      - label: "7d_5m"
+        duration: "7 D"
+        bar_size: "5 mins"
+        filename_duration: "7d"
+        filename_resolution: "5m"
+      - label: "2m_1h"
+        duration: "2 M"
+        bar_size: "1 hour"
+        filename_duration: "2m"
+        filename_resolution: "1h"
+      - label: "5y_1d"
+        duration: "5 Y"
+        bar_size: "1 day"
+        filename_duration: "5y"
+        filename_resolution: "1d"
+
+  # Technical Analysis
+  technical_analysis:
+    output_dir: data/technical
+    max_file_age: 3600
+
+  # Options Fundamentals Data
+  options_fundamentals:
+    cache_dir: data/options/fundamentals
+    cooldowns:
+      latest: 604800  # One week
+    max_file_age: 1209600  # LLM searches files within 14 days
+
+  # AI Debate Results
+  ai_analysis:
+    output_dir: data/debate
+    max_file_age: 604800  # LLM searches analysis results within 7 days
