@@ -201,6 +201,8 @@ data/examples/
 
 ## ⚡ 快速上手
 
+> 如果下面的步骤看着头疼，装个 [Claude Code](https://claude.ai/claude-code)，把这个 repo 扔给它，让它帮你搞定一切。本项目就是这么开发的。
+
 ### 1. 安装依赖
 
 ```bash
