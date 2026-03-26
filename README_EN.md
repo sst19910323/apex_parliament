@@ -213,20 +213,26 @@ pip install -r requirements.txt
 
 ### 2. Configure API Keys
 
-Edit `config/models.yaml` with your LLM API keys. You only need two or three — the author runs on Alibaba Cloud and uses DeepSeek + Qwen daily:
+Edit `config/models.yaml` to add the models you want to use. You only need two or three (the author runs on Alibaba Cloud and uses DeepSeek + Qwen daily). Choose models that are smart enough and have long context windows.
+
+`workflows/llm_client.py` contains a `role_mapping` that determines which model each role uses, indexed by key name in models.yaml. Temperature has role-specific presets: Zealot 0.9, Reaper 0.8, Fulcrum 0.3 — adversarial roles need more exploration, the arbiter needs to be conservative.
 
 ```yaml
+# config/models.yaml
+default_model: "qwen3.5-plus"
+
 models:
-  qwen3.5-plus:
-    api_key: "your_dashscope_api_key"   # Alibaba DashScope
+  qwen3-max:
+    api_key: "your_dashscope_api_key"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model_id: "qwen3-max"
+    temperature: 0.8             # Can be overridden by role presets
   deepseek:
-    api_key: "your_deepseek_api_key"    # DeepSeek
-  grok:
-    api_key: "your_xai_api_key"         # xAI Grok (optional)
-  gemini:
-    api_key: "your_gemini_api_key"      # Google Gemini (optional)
-  kimi:
-    api_key: "your_moonshot_api_key"    # Moonshot Kimi (optional)
+    api_key: "your_deepseek_api_key"
+    base_url: "https://api.deepseek.com/v1"
+    model_id: "deepseek-chat"
+    temperature: 0.8
+  # Add more models in the same format...
 ```
 
 Edit `config/data_sources.yaml` with data source API keys:

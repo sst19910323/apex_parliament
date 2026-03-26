@@ -211,20 +211,26 @@ pip install -r requirements.txt
 
 ### 2. 配置 API Key
 
-编辑 `config/models.yaml`，将 LLM 的 API Key 填入对应模型配置。不需要全部填写，配两三个即可（作者本人服务器在阿里云，日常只用 DeepSeek 和 Qwen）：
+编辑 `config/models.yaml`，按格式添加你要用的模型。不需要全部填写，配两三个即可（作者本人服务器在阿里云，日常只用 DeepSeek + Qwen）。建议选择足够聪明、上下文足够长的模型。
+
+`workflows/llm_client.py` 中的 `role_mapping` 决定了哪个角色使用哪个模型，按 models.yaml 中的 key 名索引。温度（temperature）有角色预设：Zealot 0.9、Reaper 0.8、Fulcrum 0.3 —— 对抗性角色需要更大的探索空间，裁决者需要更保守。
 
 ```yaml
+# config/models.yaml
+default_model: "qwen3.5-plus"
+
 models:
-  qwen3.5-plus:
-    api_key: "your_dashscope_api_key"   # 阿里云 DashScope
+  qwen3-max:
+    api_key: "your_dashscope_api_key"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model_id: "qwen3-max"
+    temperature: 0.8             # 可被角色预设覆盖
   deepseek:
-    api_key: "your_deepseek_api_key"    # DeepSeek
-  grok:
-    api_key: "your_xai_api_key"         # xAI Grok（可选）
-  gemini:
-    api_key: "your_gemini_api_key"      # Google Gemini（可选）
-  kimi:
-    api_key: "your_moonshot_api_key"    # Moonshot Kimi（可选）
+    api_key: "your_deepseek_api_key"
+    base_url: "https://api.deepseek.com/v1"
+    model_id: "deepseek-chat"
+    temperature: 0.8
+  # 按相同格式添加更多模型...
 ```
 
 编辑 `config/data_sources.yaml`，填入数据源 API Key：
