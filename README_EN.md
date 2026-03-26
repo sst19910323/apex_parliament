@@ -210,7 +210,7 @@ pip install -r requirements.txt
 
 ### 2. Configure API Keys
 
-Edit `config/models.yaml` with your LLM API keys:
+Edit `config/models.yaml` with your LLM API keys. You only need two or three — the author runs on Alibaba Cloud and uses DeepSeek + Qwen daily:
 
 ```yaml
 models:
@@ -219,11 +219,11 @@ models:
   deepseek:
     api_key: "your_deepseek_api_key"    # DeepSeek
   grok:
-    api_key: "your_xai_api_key"         # xAI Grok
+    api_key: "your_xai_api_key"         # xAI Grok (optional)
   gemini:
-    api_key: "your_gemini_api_key"      # Google Gemini
+    api_key: "your_gemini_api_key"      # Google Gemini (optional)
   kimi:
-    api_key: "your_moonshot_api_key"    # Moonshot Kimi
+    api_key: "your_moonshot_api_key"    # Moonshot Kimi (optional)
 ```
 
 Edit `config/data_sources.yaml` with data source API keys:

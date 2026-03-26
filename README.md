@@ -210,7 +210,7 @@ pip install -r requirements.txt
 
 ### 2. 配置 API Key
 
-编辑 `config/models.yaml`，将 LLM 的 API Key 填入对应模型配置：
+编辑 `config/models.yaml`，将 LLM 的 API Key 填入对应模型配置。不需要全部填写，配两三个即可（作者本人服务器在阿里云，日常只用 DeepSeek 和 Qwen）：
 
 ```yaml
 models:
@@ -219,11 +219,11 @@ models:
   deepseek:
     api_key: "your_deepseek_api_key"    # DeepSeek
   grok:
-    api_key: "your_xai_api_key"         # xAI Grok
+    api_key: "your_xai_api_key"         # xAI Grok（可选）
   gemini:
-    api_key: "your_gemini_api_key"      # Google Gemini
+    api_key: "your_gemini_api_key"      # Google Gemini（可选）
   kimi:
-    api_key: "your_moonshot_api_key"    # Moonshot Kimi
+    api_key: "your_moonshot_api_key"    # Moonshot Kimi（可选）
 ```
 
 编辑 `config/data_sources.yaml`，填入数据源 API Key：
