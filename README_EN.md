@@ -117,6 +117,7 @@ The `data/examples/` directory contains selected core data from a GENERAL (marke
 ```
 data/examples/
 ├── debate/       GENERAL_Analysis_20260323T134100Z.json   # Debate result (full argument chains + final verdict)
+├── news/         GENERAL_news_20260323T113922Z.json       # Market news (Finnhub)
 ├── economic/     economic_indicators_20260323T100524Z.json # Macroeconomic indicators
 ├── fear_greed/   fear_greed_latest_20260323T000000Z.json   # Fear & Greed Index + VIX
 ├── technical/    SPX_technical_20260323T134100Z.json       # SPX multi-timeframe technical snapshot

@@ -115,6 +115,7 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 ```
 data/examples/
 ├── debate/       GENERAL_Analysis_20260323T134100Z.json   # 辩论结果（三方论证链 + 最终裁决）
+├── news/         GENERAL_news_20260323T113922Z.json       # 大盘新闻（Finnhub）
 ├── economic/     economic_indicators_20260323T100524Z.json # 宏观经济指标
 ├── fear_greed/   fear_greed_latest_20260323T000000Z.json   # 恐惧贪婪指数 + VIX
 ├── technical/    SPX_technical_20260323T134100Z.json       # SPX 多时间尺度技术分析快照
