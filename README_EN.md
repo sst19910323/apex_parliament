@@ -203,7 +203,7 @@ data/examples/
 
 ## ⚡ Quick Start
 
-> If the steps below look intimidating, just install [Claude Code](https://claude.ai/claude-code), point it at this repo, and let it figure everything out. That's how this project was built.
+> If the steps below look intimidating, just install [Claude Code](https://claude.ai/claude-code), point it at this repo, and let it figure everything out. That's how this project's deployment, debugging, and open-source release were done.
 
 ### 1. Install Dependencies
 
