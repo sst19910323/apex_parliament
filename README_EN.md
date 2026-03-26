@@ -215,7 +215,7 @@ pip install -r requirements.txt
 
 Edit `config/models.yaml` to add the models you want to use. You only need two or three (the author runs on Alibaba Cloud and uses DeepSeek + Qwen daily). Choose models that are smart enough and have long context windows.
 
-`workflows/llm_client.py` contains a `role_mapping` that determines which model each role uses, indexed by key name in models.yaml. Temperature has role-specific presets: Zealot 0.9, Reaper 0.8, Fulcrum 0.3 — adversarial roles need more exploration, the arbiter needs to be conservative.
+`workflows/llm_client.py` contains a `role_mapping` that determines which model each role uses, indexed by key name in models.yaml. Temperature has role-specific presets: Zealot 0.9, Reaper 0.8, Fulcrum 0.3 — adversarial roles need more exploration; Fulcrum is a stubborn damper by design and also handles report writing and debate moderation (deciding whether another round is needed), so it requires low temperature for stability.
 
 ```yaml
 # config/models.yaml

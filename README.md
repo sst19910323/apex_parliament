@@ -213,7 +213,7 @@ pip install -r requirements.txt
 
 编辑 `config/models.yaml`，按格式添加你要用的模型。不需要全部填写，配两三个即可（作者本人服务器在阿里云，日常只用 DeepSeek + Qwen）。建议选择足够聪明、上下文足够长的模型。
 
-`workflows/llm_client.py` 中的 `role_mapping` 决定了哪个角色使用哪个模型，按 models.yaml 中的 key 名索引。温度（temperature）有角色预设：Zealot 0.9、Reaper 0.8、Fulcrum 0.3 —— 对抗性角色需要更大的探索空间，裁决者需要更保守。
+`workflows/llm_client.py` 中的 `role_mapping` 决定了哪个角色使用哪个模型，按 models.yaml 中的 key 名索引。温度（temperature）有角色预设：Zealot 0.9、Reaper 0.8、Fulcrum 0.3 —— 对抗性角色需要更大的探索空间；Fulcrum 人设是顽固的阻尼器，同时兼任报告撰写和辩论秩序维护（判断是否需要下一轮），因此需要低温度保持稳定。
 
 ```yaml
 # config/models.yaml
