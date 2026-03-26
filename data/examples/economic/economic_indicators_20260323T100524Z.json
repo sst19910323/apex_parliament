@@ -1,0 +1,70 @@
+{
+  "timestamp": 1774260324,
+  "fetched_at": "2026-03-23T10:05:24.907439+00:00",
+  "indicators": {
+    "federal_funds_rate": {
+      "symbol": "FEDERAL_FUNDS_RATE",
+      "name": "Federal Funds Rate",
+      "value": 3.64,
+      "date": "2026-02-01",
+      "unit": "%",
+      "meta": null,
+      "fetched_at": "2026-03-23T10:05:24.908063+00:00"
+    },
+    "cpi": {
+      "symbol": "CPI_MONTHLY",
+      "name": "CPI (monthly)",
+      "value": 326.785,
+      "date": "2026-02-01",
+      "unit": "Index",
+      "meta": {
+        "interval": "monthly"
+      },
+      "fetched_at": "2026-03-23T10:05:24.908082+00:00"
+    },
+    "unemployment": {
+      "symbol": "UNEMPLOYMENT",
+      "name": "Unemployment Rate",
+      "value": 4.4,
+      "date": "2026-02-01",
+      "unit": "%",
+      "meta": null,
+      "fetched_at": "2026-03-23T10:05:24.908090+00:00"
+    },
+    "real_gdp": {
+      "symbol": "REAL_GDP_QUARTERLY",
+      "name": "Real GDP (quarterly)",
+      "value": 6125.904,
+      "date": "2025-10-01",
+      "unit": "Billions of Dollars",
+      "meta": {
+        "interval": "quarterly"
+      },
+      "fetched_at": "2026-03-23T10:05:24.908098+00:00"
+    },
+    "treasury_10y": {
+      "symbol": "TREASURY_YIELD_10YEAR_MONTHLY",
+      "name": "Treasury Yield 10year (monthly)",
+      "value": 4.13,
+      "date": "2026-02-01",
+      "unit": "%",
+      "meta": {
+        "maturity": "10year",
+        "interval": "monthly"
+      },
+      "fetched_at": "2026-03-23T10:05:24.908107+00:00"
+    },
+    "treasury_2y": {
+      "symbol": "TREASURY_YIELD_2YEAR_MONTHLY",
+      "name": "Treasury Yield 2year (monthly)",
+      "value": 3.47,
+      "date": "2026-02-01",
+      "unit": "%",
+      "meta": {
+        "maturity": "2year",
+        "interval": "monthly"
+      },
+      "fetched_at": "2026-03-23T10:05:24.908114+00:00"
+    }
+  }
+}

@@ -1,0 +1,249 @@
+{
+  "symbol": "SPX",
+  "market_data_timestamp_utc": "20260323T134100Z",
+  "latest_data_timestamp": "2026-03-23T13:41:00+00:00",
+  "minute_level_features": {
+    "last_close": 6608.29,
+    "last_wap": 0.0,
+    "intraday_vwap_dist_pct": 0.0,
+    "intraday_volume_ratio_vs_avg": null,
+    "intraday_trend_vs_open": 0.51,
+    "price_change_pct_5m": 0.03,
+    "rsi_14_5min": 77.87,
+    "atr_14_5min": 15.1157,
+    "liquidity_score_vol_per_bar": 0.0
+  },
+  "hourly_features": {
+    "ma_20_hourly_val": 6590.249,
+    "ma_50_hourly_val": 6652.4982,
+    "ma_20_slope_pct_hourly": -0.495,
+    "rsi_14_hourly": 50.59,
+    "macd_hist_hourly": 0.556,
+    "atr_14_hourly": 36.0299,
+    "bb_pct_b_hourly": 0.59,
+    "volume_ratio_vs_avg_hourly": null,
+    "price_structure_tactical": {
+      "description": "摆动点 (Lookback: 20, MinPct: 1.5%)",
+      "pivots": [
+        {
+          "date": "2026-01-29T16:00:00+00:00",
+          "price": 6870.8,
+          "type": "Low"
+        },
+        {
+          "date": "2026-02-03T14:30:00+00:00",
+          "price": 6993.08,
+          "type": "High"
+        },
+        {
+          "date": "2026-02-05T16:00:00+00:00",
+          "price": 6780.13,
+          "type": "Low"
+        },
+        {
+          "date": "2026-02-11T14:30:00+00:00",
+          "price": 6993.48,
+          "type": "High"
+        },
+        {
+          "date": "2026-02-17T15:00:00+00:00",
+          "price": 6775.5,
+          "type": "Low"
+        },
+        {
+          "date": "2026-02-25T20:00:00+00:00",
+          "price": 6952.51,
+          "type": "High"
+        },
+        {
+          "date": "2026-03-09T14:00:00+00:00",
+          "price": 6636.04,
+          "type": "Low"
+        },
+        {
+          "date": "2026-03-10T17:00:00+00:00",
+          "price": 6845.08,
+          "type": "High"
+        },
+        {
+          "date": "2026-03-13T19:00:00+00:00",
+          "price": 6623.92,
+          "type": "Low"
+        },
+        {
+          "date": "2026-03-17T13:30:00+00:00",
+          "price": 6754.3,
+          "type": "High"
+        },
+        {
+          "date": "2026-03-20T19:00:00+00:00",
+          "price": 6473.52,
+          "type": "Low"
+        }
+      ]
+    }
+  },
+  "MICRO_FLOW_ENGINE": {
+    "micro_flow_engine": {
+      "description": "DP简化流 (time=时间, close=价格, pct=波段涨幅%, vol_rel=相对量比)",
+      "flow_sequence": [
+        {
+          "time": "01-23 14:30",
+          "close": 6911.09,
+          "pct": 0.0
+        },
+        {
+          "time": "01-28 14:30",
+          "close": 6994.43,
+          "pct": 1.21
+        },
+        {
+          "time": "01-29 15:00",
+          "close": 6882.85,
+          "pct": -1.6
+        },
+        {
+          "time": "02-02 18:00",
+          "close": 6987.56,
+          "pct": 1.52
+        },
+        {
+          "time": "02-05 15:00",
+          "close": 6793.34,
+          "pct": -2.78
+        },
+        {
+          "time": "02-10 14:30",
+          "close": 6978.78,
+          "pct": 2.73
+        },
+        {
+          "time": "02-17 14:30",
+          "close": 6783.88,
+          "pct": -2.79
+        },
+        {
+          "time": "02-18 15:00",
+          "close": 6903.89,
+          "pct": 1.77
+        },
+        {
+          "time": "02-23 19:00",
+          "close": 6826.53,
+          "pct": -1.12
+        },
+        {
+          "time": "02-25 20:00",
+          "close": 6946.89,
+          "pct": 1.76
+        },
+        {
+          "time": "03-03 15:00",
+          "close": 6733.1,
+          "pct": -3.08
+        },
+        {
+          "time": "03-04 19:00",
+          "close": 6882.86,
+          "pct": 2.22
+        },
+        {
+          "time": "03-09 13:30",
+          "close": 6652.36,
+          "pct": -3.35
+        },
+        {
+          "time": "03-10 17:00",
+          "close": 6832.99,
+          "pct": 2.72
+        },
+        {
+          "time": "03-13 17:00",
+          "close": 6636.1,
+          "pct": -2.88
+        },
+        {
+          "time": "03-17 13:30",
+          "close": 6748.62,
+          "pct": 1.7
+        },
+        {
+          "time": "03-20 18:00",
+          "close": 6506.07,
+          "pct": -3.59
+        },
+        {
+          "time": "03-23 13:30",
+          "close": 6608.29,
+          "pct": 1.57
+        }
+      ]
+    }
+  },
+  "daily_features": {
+    "daily_change_percent": 1.56,
+    "ma_20_daily_val": 6759.0965,
+    "ma_50_daily_val": 6851.5004,
+    "ma_200_daily_val": 6624.9212,
+    "ma_cross_status": "Bullish",
+    "ma_alignment": "Mixed",
+    "rsi_14_daily": 39.49,
+    "macd_hist_daily": -19.815,
+    "atr_14_daily_percent": 1.44,
+    "bb_pct_b_daily": 0.19,
+    "bb_width_pct_daily": 7.23,
+    "volume_ratio_vs_avg_daily": null,
+    "volatility_regime_daily": "High",
+    "recent_gaps": "Up",
+    "consolidation_days": 5
+  },
+  "weekly_features": {
+    "ma_40_weekly_val": 6659.514,
+    "ma_200_weekly_val": 5191.2028
+  },
+  "contextual_features": {
+    "market_session": "Regular",
+    "percent_from_52w_high_low": 81.82,
+    "nearest_support_resistance": {
+      "support": 6473.52,
+      "resistance": 6993.48
+    },
+    "max_drawdown_30d": -6.58,
+    "sharpe_ratio_30d": -3.33,
+    "relative_strength_vs_spy": 0.988,
+    "correlation_vs_spy": 0.937,
+    "beta": 0.878,
+    "cross_timeframe_trend_alignment": "Bearish",
+    "cross_timeframe_momentum_score": "Bullish",
+    "price_structure_strategic": {
+      "description": "摆动点 (Lookback: 20, MinPct: 8.0%)",
+      "pivots": [
+        {
+          "date": "2024-07-16T00:00:00+00:00",
+          "price": 5669.67,
+          "type": "High"
+        },
+        {
+          "date": "2024-08-05T00:00:00+00:00",
+          "price": 5119.26,
+          "type": "Low"
+        },
+        {
+          "date": "2025-02-19T00:00:00+00:00",
+          "price": 6147.43,
+          "type": "High"
+        },
+        {
+          "date": "2025-04-07T00:00:00+00:00",
+          "price": 4835.04,
+          "type": "Low"
+        },
+        {
+          "date": "2026-01-28T00:00:00+00:00",
+          "price": 7002.28,
+          "type": "High"
+        }
+      ]
+    }
+  }
+}

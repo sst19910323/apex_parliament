@@ -6,6 +6,7 @@ __pycache__/
 
 # Data & results (generated at runtime)
 data/
+!data/examples/
 backtest/
 results/
 
