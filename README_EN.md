@@ -14,6 +14,8 @@ Apex Quant is an LLM-based multi-agent quantitative analysis framework. Its core
 
 The project started as a personal US stock analysis dashboard for friends in October 2025 and evolved into the triangular debate architecture you see today. Open-sourced alongside the paper.
 
+> **Language note:** Prompts, debate transcripts, and the frontend are currently in Chinese. However, the analysis output includes English fields for all key conclusions (summary, statement, drivers, risks, etc.) — see the [example data](#-example-data) below.
+
 ---
 
 ## 🏛️ Core Architecture: Triangular Roundtable Debate
