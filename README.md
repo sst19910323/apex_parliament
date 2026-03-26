@@ -297,19 +297,22 @@ apex_parliament/
 │   ├── state.py                     # 辩论状态机
 │   ├── llm_client.py                # LLM 统一调用层（OpenAI 兼容协议）
 │   ├── prompt_manager.py            # 提示词加载与组装
-│   ├── xml_response_parser.py       # 辩论轮次 XML 解析
-│   └── xml_final_report_parser.py   # 最终报告 XML 解析
+│   ├── xml_response_parser.py       # 辩论轮次 XML→JSON（XML 比 JSON 容错率更高）
+│   └── xml_final_report_parser.py   # 最终报告 XML→JSON
 │
 ├── fetchers/                        # 数据采集模块
-│   ├── api_key_manager.py           # Alpha Vantage API Key 轮询管理
-│   ├── alpha_economic_fetcher.py    # 宏观经济指标（GDP、CPI、利率等）
-│   ├── alpha_fundamental_fetcher.py # 公司基本面（财报、估值）
-│   ├── alpha_fundamental_news_fetcher.py  # Alpha Vantage 新闻
-│   ├── finnhub_news_fetcher.py      # Finnhub 新闻采集
-│   ├── finnhub_fundamental_fetcher.py     # Finnhub 基本面
-│   ├── fear_greed_fetcher.py        # CNN 恐惧贪婪指数
-│   ├── economic_data_fetcher.py     # 经济数据聚合
-│   └── interactive_stock_fetcher.py # IBKR 行情数据
+│   ├── api_key_manager.py           # Alpha Vantage API Key 轮询管理        ← 在用
+│   ├── alpha_economic_fetcher.py    # 宏观经济指标（GDP、CPI、利率等）        ← 在用 (data_scheduler)
+│   ├── alpha_fundamental_fetcher.py # 公司基本面（财报、估值）                ← 在用 (data_scheduler)
+│   ├── finnhub_news_fetcher.py      # Finnhub 新闻采集                      ← 在用 (data_scheduler)
+│   ├── fear_greed_fetcher.py        # CNN 恐惧贪婪指数                      ← 在用 (data_scheduler)
+│   ├── interactive_stock_fetcher.py # IBKR 行情数据                         ← 在用 (horizon_sentinel)
+│   ├── alpha_fundamental_news_fetcher.py  # Alpha Vantage 新闻              ← 废弃
+│   ├── finnhub_fundamental_fetcher.py     # Finnhub 基本面                  ← 废弃
+│   ├── economic_data_fetcher.py     # 经济数据聚合                           ← 废弃
+│   ├── interactive_brokers_etf_profile.py # IBKR ETF 持仓                   ← 废弃
+│   ├── interactive_options_fundamentals_fetcher.py # IBKR 期权数据           ← 废弃
+│   └── option_collector.py          # 期权数据聚合                           ← 废弃
 │
 ├── analysis/                        # 量化分析
 │   ├── technical_snapshot_builder.py # 多时间尺度技术指标快照
@@ -318,7 +321,7 @@ apex_parliament/
 ├── apex_quant_entry.py              # FastAPI 后端入口
 ├── data_scheduler.py                # 低频数据采集调度器（新闻、基本面，受 API 限额约束）
 ├── horizon_sentinel.py              # AI 辩论调度器（滚动批次获取行情 + 触发 LLM 辩论）
-├── run_debate.py                    # 单次辩论运行脚本（调试用）
+├── run_debate.py                    # LangGraph 辩论引擎入口（horizon_sentinel 调用）
 ├── clean_cache.py                   # 缓存清理工具
 ├── start.sh / stop.sh               # 服务启停脚本
 └── requirements.txt                 # Python 依赖

@@ -297,19 +297,22 @@ apex_parliament/
 │   ├── state.py                     # Debate state machine
 │   ├── llm_client.py                # Unified LLM call layer (OpenAI-compatible protocol)
 │   ├── prompt_manager.py            # Prompt loading & assembly
-│   ├── xml_response_parser.py       # Debate round XML parser
-│   └── xml_final_report_parser.py   # Final report XML parser
+│   ├── xml_response_parser.py       # Debate round XML→JSON (XML is more fault-tolerant than JSON)
+│   └── xml_final_report_parser.py   # Final report XML→JSON
 │
 ├── fetchers/                        # Data Fetcher Modules
-│   ├── api_key_manager.py           # Alpha Vantage API key rotation manager
-│   ├── alpha_economic_fetcher.py    # Macroeconomic indicators (GDP, CPI, rates, etc.)
-│   ├── alpha_fundamental_fetcher.py # Company fundamentals (earnings, valuations)
-│   ├── alpha_fundamental_news_fetcher.py  # Alpha Vantage news
-│   ├── finnhub_news_fetcher.py      # Finnhub news fetcher
-│   ├── finnhub_fundamental_fetcher.py     # Finnhub fundamentals
-│   ├── fear_greed_fetcher.py        # CNN Fear & Greed Index
-│   ├── economic_data_fetcher.py     # Economic data aggregator
-│   └── interactive_stock_fetcher.py # IBKR market data
+│   ├── api_key_manager.py           # Alpha Vantage API key rotation        ← active
+│   ├── alpha_economic_fetcher.py    # Macro indicators (GDP, CPI, rates)    ← active (data_scheduler)
+│   ├── alpha_fundamental_fetcher.py # Company fundamentals                  ← active (data_scheduler)
+│   ├── finnhub_news_fetcher.py      # Finnhub news fetcher                  ← active (data_scheduler)
+│   ├── fear_greed_fetcher.py        # CNN Fear & Greed Index                ← active (data_scheduler)
+│   ├── interactive_stock_fetcher.py # IBKR market data                      ← active (horizon_sentinel)
+│   ├── alpha_fundamental_news_fetcher.py  # Alpha Vantage news              ← deprecated
+│   ├── finnhub_fundamental_fetcher.py     # Finnhub fundamentals            ← deprecated
+│   ├── economic_data_fetcher.py     # Economic data aggregator              ← deprecated
+│   ├── interactive_brokers_etf_profile.py # IBKR ETF profile                ← deprecated
+│   ├── interactive_options_fundamentals_fetcher.py # IBKR options data      ← deprecated
+│   └── option_collector.py          # Options data aggregator               ← deprecated
 │
 ├── analysis/                        # Quantitative Analysis
 │   ├── technical_snapshot_builder.py # Multi-timeframe technical indicator snapshots
@@ -318,7 +321,7 @@ apex_parliament/
 ├── apex_quant_entry.py              # FastAPI backend entry point
 ├── data_scheduler.py                # Low-frequency data scheduler (news, fundamentals — API rate limited)
 ├── horizon_sentinel.py              # AI debate scheduler (rolling batch market data + LLM debate)
-├── run_debate.py                    # Single debate runner (for debugging)
+├── run_debate.py                    # LangGraph debate engine entry (called by horizon_sentinel)
 ├── clean_cache.py                   # Cache cleanup utility
 ├── start.sh / stop.sh               # Service start/stop scripts
 └── requirements.txt                 # Python dependencies
