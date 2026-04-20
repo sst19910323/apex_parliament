@@ -99,4 +99,4 @@ raw_data_general: |
   - 纳斯达克100技术分析: {ndx_data}
   - 道琼斯工业指数技术分析: {indu_data}
 
-  注：这是宏观市场分析，operation_target请填写纳斯达克(NDX)预期点位。
+  注：这是宏观市场分析，operation_target填写纳斯达克(NDX)预期点位数字。

@@ -22,7 +22,7 @@ init_output: |
     <debate_intensity>MEDIUM</debate_intensity>
     <action>65</action>
     <operation_type>MARKET_ENTRY</operation_type>
-    <operation_target>MARKET</operation_target>
+    <operation_target>274.29</operation_target>
     <operation_volume>STANDARD_SIZE</operation_volume>
     <mentality>
       <item name="buy_the_dip" probability="0.7"/>
@@ -36,7 +36,7 @@ init_output: |
   - debate_intensity: LOW / MEDIUM / HIGH，你预期的辩论烈度
   - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
   - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
-  - operation_target: "MARKET" / 具体价格 / "N/A"
+  - operation_target: 交易操作必填具体价格锚点（数字）：市价单填当前价作为锚点，限价单填限价位；Hold填"N/A"或关键支撑价
   - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
   - mentality: 1-5种最终心态及概率，列出显著项即可（总和通常为1，若心态复杂可略小于1，忽略极小项）
     可选心态name: buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively / cut_losses_reluctantly / hold_and_ride_profit / trapped_hold / wait_for_confirmation / wait_and_see / avoid_uncertainty / bottom_fishing / short_squeeze_chase / sell_on_strength / hedge_position / average_down / average_up / all_in / rotate_sector / deleveraging / contrarian_bet
@@ -51,7 +51,7 @@ zealot_debate_output: |
     <debate_intensity>MEDIUM</debate_intensity>
     <action>65</action>
     <operation_type>MARKET_ENTRY</operation_type>
-    <operation_target>MARKET</operation_target>
+    <operation_target>274.29</operation_target>
     <operation_volume>STANDARD_SIZE</operation_volume>
     <mentality>
       <item name="buy_the_dip" probability="0.7"/>
@@ -65,7 +65,7 @@ zealot_debate_output: |
   - debate_intensity: LOW / MEDIUM / HIGH
   - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
   - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
-  - operation_target: "MARKET" / 具体价格 / "N/A"
+  - operation_target: 交易操作必填具体价格锚点（数字）：市价单填当前价作为锚点，限价单填限价位；Hold填"N/A"或关键支撑价
   - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
   - mentality: 1-5种最终心态及概率，列出显著项即可（总和通常为1，若心态复杂可略小于1，忽略极小项）
     可选心态name: buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively / cut_losses_reluctantly / hold_and_ride_profit / trapped_hold / wait_for_confirmation / wait_and_see / avoid_uncertainty / bottom_fishing / short_squeeze_chase / sell_on_strength / hedge_position / average_down / average_up / all_in / rotate_sector / deleveraging / contrarian_bet
@@ -80,7 +80,7 @@ reaper_debate_output: |
     <debate_intensity>MEDIUM</debate_intensity>
     <action>35</action>
     <operation_type>TRIM_POSITION</operation_type>
-    <operation_target>MARKET</operation_target>
+    <operation_target>274.29</operation_target>
     <operation_volume>STANDARD_SIZE</operation_volume>
     <mentality>
       <item name="profit_taking" probability="0.7"/>
@@ -94,7 +94,7 @@ reaper_debate_output: |
   - debate_intensity: LOW / MEDIUM / HIGH
   - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
   - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
-  - operation_target: "MARKET" / 具体价格 / "N/A"
+  - operation_target: 交易操作必填具体价格锚点（数字）：市价单填当前价作为锚点，限价单填限价位；Hold填"N/A"或关键支撑价
   - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
   - mentality: 1-5种最终心态及概率，列出显著项即可（总和通常为1，若心态复杂可略小于1，忽略极小项）
     可选心态name: buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively / cut_losses_reluctantly / hold_and_ride_profit / trapped_hold / wait_for_confirmation / wait_and_see / avoid_uncertainty / bottom_fishing / short_squeeze_chase / sell_on_strength / hedge_position / average_down / average_up / all_in / rotate_sector / deleveraging / contrarian_bet
@@ -124,7 +124,7 @@ fulcrum_debate_output: |
   - debate_intensity: LOW / MEDIUM / HIGH
   - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
   - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
-  - operation_target: "MARKET" / 具体价格 / "N/A"
+  - operation_target: 交易操作必填具体价格锚点（数字）：市价单填当前价作为锚点，限价单填限价位；Hold填"N/A"或关键支撑价
   - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
   - mentality: 1-5种最终心态及概率，列出显著项即可（总和通常为1，若心态复杂可略小于1，忽略极小项）
     可选心态name: buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively / cut_losses_reluctantly / hold_and_ride_profit / trapped_hold / wait_for_confirmation / wait_and_see / avoid_uncertainty / bottom_fishing / short_squeeze_chase / sell_on_strength / hedge_position / average_down / average_up / all_in / rotate_sector / deleveraging / contrarian_bet

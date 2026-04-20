@@ -56,7 +56,7 @@ final_report_output: |
 
     <action>65</action>
     <operation_type>MARKET_ENTRY</operation_type>
-    <operation_target>MARKET</operation_target>
+    <operation_target>274.29</operation_target>
     <operation_volume>STANDARD_SIZE</operation_volume>
 
     <dissent>
@@ -96,7 +96,7 @@ final_report_output: |
   ### 核心决策
   - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
   - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
-  - operation_target: "MARKET" / 具体价格 / "N/A"
+  - operation_target: 交易操作必填具体价格锚点（数字）：市价单填当前价作为锚点，限价单填限价位；Hold填"N/A"或关键支撑价
   - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
 
   ### 分歧记录
@@ -106,10 +106,9 @@ final_report_output: |
   - statement / statement_en: 一句话高确信度宣言，概括最终决策的核心理由
 
   ## 重要原则
-  - action必须在 [reaper_final_action, zealot_final_action] 区间内（包络线原则）
-  - 若Zealot和Reaper已达成共识，必须尊重共识
   - evidence必须来自raw_data，严禁编造
   - 报告必须反映辩论的进化轨迹，而非你的独立判断
+  - 决策形成原则遵循shared_rules中的"最终决策框架"
 
 signoff_output: |
   请严格按以下XML格式输出，不要输出任何XML以外的内容：

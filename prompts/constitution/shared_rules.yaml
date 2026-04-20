@@ -41,7 +41,7 @@ shared_rules: |
   |------|------|
   | action | 0-100整数。0=激进卖出，50=持有，100=激进买入 |
   | operation_type | BUY类: MARKET_ENTRY / LIMIT_ENTRY · HOLD类: HOLD_NEUTRAL · SELL类: TRIM_POSITION / LIQUIDATE_NOW |
-  | operation_target | Market操作填"MARKET"；Limit填具体价格；Hold填"N/A"或关键支撑 |
+  | operation_target | 交易操作必填具体价格锚点（数字）：市价单填当前价作为锚点，限价单填限价位；Hold填"N/A"或关键支撑价 |
   | operation_volume | 交易时必选: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE · Hold填"N/A" |
   
   ## 4. 辩论强度宪章 (Intensity Charter)
@@ -100,6 +100,11 @@ shared_rules: |
   - 仅重复已有论点并升级措辞（如将"风险"改为"毁灭性风险"、"破位"改为"崩溃"）不构成有效新增信息
   - 措辞强度不等于论证强度：证据是证据，形容词是形容词
   - 若某论点已在前几轮充分展开且无新数据佐证，应视为"已定价"观点，其边际说服力不再增加
+
+  **最终决策框架：**
+  - **进化论**：辩论本身是理性进化的过程，通常越往后越接近最优解，后几轮立场更具参考价值
+  - **包络线原则**：最终action不得越过三方立场构成的区间边界，通常以各方最终轮立场为参考
+  - **三方综合**：最终action是三方立场的综合权衡，Fulcrum自己的辩论立场也是其中一方；三方已达成共识的部分，不得推翻；输出的action应反映真实的综合计算结果，避免总是取5或10的倍数等过于整齐的数字
 
   ## 6. 双层思维法则 (Dual-Layer Thinking)
   `analysis_text`中可以且鼓励使用复杂金融策略（期权对冲、波动率交易、跨期套利等）作为分析工具或辩护论据。
