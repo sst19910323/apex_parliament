@@ -26,10 +26,11 @@ class LLMClient:
         
         # 2. 定义角色到模型 Key 的映射 (根据您的 models.yaml)
         self.role_mapping = {
-            "zealot": "deepseek",
-            "reaper": "deepseek",
-            "fulcrum": "qwen3-max",
-            "general": self.default_model_key
+            "zealot":     "deepseek",
+            "reaper":     "deepseek",
+            "fulcrum":    "qwen3-max",
+            "chronicler": "qwen3.6-plus",
+            "general":    self.default_model_key
         }
 
     def _load_full_config(self) -> Dict[str, Any]:
@@ -59,6 +60,7 @@ class LLMClient:
             if role == 'zealot': final_temp = 0.9
             elif role == 'reaper': final_temp = 0.8
             elif role == 'fulcrum': final_temp = 0.3
+            elif role == 'chronicler': final_temp = 0.3
             # 否则保持 None，在 _chat_completion 中读取 yaml 配置
             
         return self._chat_completion(messages, model_key, final_temp)

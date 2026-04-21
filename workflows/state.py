@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------
 # 文件路径: workflows/state.py
-# (V9.3 - 有状态多轮对话：每个 agent 维护独立 messages 线程)
+# (V10.0 - 四方架构：Z/R/F 三辩论者 + Chronicler 史官)
 # -----------------------------------------------------------------
 import operator
 from typing import TypedDict, List, Dict, Any, Annotated, Optional
@@ -42,7 +42,10 @@ class DebateState(TypedDict):
 
     # --- 3. 纯净辩论历史 (Clean Debate History) ---
     # [保持不变] List[Dict] 结构，使用 operator.add 自动追加
-    debate_history: Annotated[List[Dict[str, Any]], operator.add]
+    # debate_history: 每轮三方的原始XML，用于最终JSON留档
+    # polished_debate_history: 每轮三方经Chronicler精简后的版本，辩论节点据此注入记忆
+    debate_history:          Annotated[List[Dict[str, Any]], operator.add]
+    polished_debate_history: Annotated[List[Dict[str, Any]], operator.add]
 
     # --- 4. 各方最新发言 (Latest Arguments) ---
     # 存储上一轮各方的完整JSON输出（字符串形式）
@@ -57,16 +60,18 @@ class DebateState(TypedDict):
 
     # --- 5. 产出物 (Outputs) ---
     final_report: Optional[Dict[str, Any]]
-    
+
     # --- 6. 签章结果 (Sign-off Results) ---
-    zealot_signoff: Optional[Dict[str, Any]]
-    reaper_signoff: Optional[Dict[str, Any]]
+    zealot_signoff:  Optional[Dict[str, Any]]
+    reaper_signoff:  Optional[Dict[str, Any]]
+    fulcrum_signoff: Optional[Dict[str, Any]]
 
     # --- 7. 有状态对话线程 (Stateful Conversation Threads) ---
     # 每个 agent 持有自己完整的 messages 列表，跨轮次累积，不使用 operator.add（整体替换）
-    zealot_messages:  List[Dict[str, str]]
-    reaper_messages:  List[Dict[str, str]]
-    fulcrum_messages: List[Dict[str, str]]
+    zealot_messages:     List[Dict[str, str]]
+    reaper_messages:     List[Dict[str, str]]
+    fulcrum_messages:    List[Dict[str, str]]
+    chronicler_messages: List[Dict[str, str]]
 
 
 def create_initial_state(
@@ -93,6 +98,7 @@ def create_initial_state(
         
         # [保持不变] 初始化为空列表
         debate_history=[],
+        polished_debate_history=[],
         
         # 各方最新发言
         zealot_latest="",
@@ -108,9 +114,11 @@ def create_initial_state(
         # 签章结果
         zealot_signoff=None,
         reaper_signoff=None,
+        fulcrum_signoff=None,
 
         # 有状态对话线程（初始为空，init 节点负责建立）
         zealot_messages=[],
         reaper_messages=[],
         fulcrum_messages=[],
+        chronicler_messages=[],
     )

@@ -25,29 +25,40 @@ debate_task: |
   ## 辩论记录
   {debate_history}
 
-# 最终报告任务（Fulcrum专用）
-finalize_task: |
-  ## 最终报告
+# Chronicler 秩序维护任务（每轮辩论结束后）
+moderation_task: |
+  ## 秩序维护 | 第 {turn} 轮已结束
   标的：{symbol}
-  
-  辩论已结束，请撰写最终裁决报告。
-  
-  ## 原始数据
-  {raw_data}
-  
-  ## 辩论记录
+
+  你刚刚旁听完第 {turn} 轮辩论。请判断辩论是否应继续。
+
+  ## 本轮三方发言
+  {round_xml}
+
+  ## 你的任务
+  基于三方立场差距、是否陷入复读、是否达成共识等因素，
+  输出 CONTINUE 或 TERMINATE，并用一句话说明理由。
+
+# 最终报告任务（Chronicler专用）
+finalize_task: |
+  ## 最终报告阶段
+  标的：{symbol}
+
+  辩论已结束，请基于你旁听记录的完整辩论历史，撰写最终裁决报告。
+
+  ## 完整辩论记录
   {debate_history}
 
-# 签章任务（Zealot和Reaper专用）
+# 签章任务（Zealot / Reaper / Fulcrum 三方通用）
 signoff_task: |
   ## 签章确认
   标的：{symbol}
-  
-  最终报告已出炉，请确认你的最终立场。
-  
-  ## Fulcrum的最终报告
+
+  史官的最终报告已出炉，请确认你的最终立场。
+
+  ## 史官(Chronicler)的最终报告
   {final_report}
-  
+
   ## 你的任务
   1. 确认你的最终action数值
   2. 如有保留意见，简要说明（一两句话）

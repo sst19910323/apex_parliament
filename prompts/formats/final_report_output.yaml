@@ -1,6 +1,6 @@
 # -----------------------------------------------------------------
 # 文件路径: prompts/formats/final_report_output.yaml
-# 最终报告输出格式（XML版 - 仅Fulcrum）
+# 最终报告输出格式（XML版 - 仅Chronicler）
 # -----------------------------------------------------------------
 
 final_report_output: |
@@ -54,16 +54,18 @@ final_report_output: |
       </review_triggers_en>
     </risk_management>
 
-    <action>65</action>
-    <operation_type>MARKET_ENTRY</operation_type>
-    <operation_target>274.29</operation_target>
-    <operation_volume>STANDARD_SIZE</operation_volume>
+    <action>[0-100整数]</action>
+    <operation_type>[操作类型枚举]</operation_type>
+    <operation_target>[raw_data中该标的的真实价格数字]</operation_target>
+    <operation_volume>[仓位规模枚举]</operation_volume>
 
     <dissent>
-      <zealot_final_action>75</zealot_final_action>
+      <zealot_final_action>[Zealot最终action]</zealot_final_action>
       <zealot_reservation><![CDATA[Zealot的保留意见，若无填"无"]]></zealot_reservation>
-      <reaper_final_action>40</reaper_final_action>
+      <reaper_final_action>[Reaper最终action]</reaper_final_action>
       <reaper_reservation><![CDATA[Reaper的保留意见，若无填"无"]]></reaper_reservation>
+      <fulcrum_final_action>[Fulcrum最终action]</fulcrum_final_action>
+      <fulcrum_reservation><![CDATA[Fulcrum的保留意见，若无填"无"]]></fulcrum_reservation>
     </dissent>
 
     <statement><![CDATA[最终高确信度宣言]]></statement>
@@ -73,7 +75,7 @@ final_report_output: |
   ## 字段说明
 
   ### 辩论总结
-  - debate_summary / debate_summary_en: 整场辩论的总结，必须包括各方立场的演变轨迹、关键争议点、达成的共识、保留的分歧，以及Fulcrum最终定action和operation的核心理由
+  - debate_summary / debate_summary_en: 整场辩论的总结，必须包括各方立场的演变轨迹、关键争议点、达成的共识、保留的分歧，以及最终action和operation的综合理由（基于三方立场的权衡）
 
   ### 心态
   - mentality: 1-5种最终心态及概率，列出显著项即可（总和通常为1，若心态复杂可略小于1，忽略极小项）
@@ -96,11 +98,14 @@ final_report_output: |
   ### 核心决策
   - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
   - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
-  - operation_target: 交易操作必填具体价格锚点（数字）：市价单填当前价作为锚点，限价单填限价位；Hold填"N/A"或关键支撑价
+  - operation_target: 交易操作必填具体价格锚点（数字）。
+      * 市价单：填当前价作为锚点
+      * 限价单：填基于raw_data与三方意见综合判断后的合理限价位
+      * Hold：填"N/A"或关键支撑价
   - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
 
   ### 分歧记录
-  - dissent: 记录Zealot和Reaper的最终立场及保留意见
+  - dissent: 记录三方(Zealot/Reaper/Fulcrum)的最终立场及保留意见
 
   ### 最终宣言
   - statement / statement_en: 一句话高确信度宣言，概括最终决策的核心理由
@@ -115,9 +120,9 @@ signoff_output: |
 
   <signoff>
     <final_action>75</final_action>
-    <reservation><![CDATA[对Fulcrum最终报告的保留意见；若无异议可留空或简单确认]]></reservation>
+    <reservation><![CDATA[对史官最终报告的保留意见；若无异议可留空或简单确认]]></reservation>
   </signoff>
 
   ## 字段说明
   - final_action: 你的最终action数值（0-100整数），代表你在整场辩论结束后的最终立场
-  - reservation: 对Fulcrum最终报告的保留意见（一两句话）；若无异议可留空或简单确认
+  - reservation: 对史官最终报告的保留意见（一两句话）；若无异议可留空或简单确认

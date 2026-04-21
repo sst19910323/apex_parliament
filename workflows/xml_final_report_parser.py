@@ -1,7 +1,7 @@
 """
 xml_final_report_parser.py - 最终报告XML解析器
 
-将Fulcrum输出的final_report XML机械转换为系统内部JSON dict。
+将Chronicler(史官)输出的final_report XML机械转换为系统内部JSON dict。
 三层容错: 标准XML → 正则fallback → 默认值兜底
 """
 
@@ -96,7 +96,7 @@ def _regex_cdata_or_plain(text: str, tag: str) -> str:
 
 def parse_final_report_xml(raw_text: str) -> Dict[str, Any]:
     """
-    解析Fulcrum最终报告XML，返回与原JSON格式兼容的dict。
+    解析Chronicler(史官)最终报告XML，返回与原JSON格式兼容的dict。
     """
     if not raw_text or not raw_text.strip():
         logger.warning("[FinalReportParser] Empty input.")

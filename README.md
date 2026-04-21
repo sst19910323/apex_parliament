@@ -24,11 +24,15 @@ Most multi-agent trading frameworks assign agents to different **data types** (f
 
 ![triangle](images/triangle.png)
 
-Each agent holds a fixed investment philosophy and must complete a structured debate before any decision is output:
+Three debaters hold fixed investment philosophies and must complete a structured debate before any decision is output:
 
 - 🔴 **Zealot** — Always looking for reasons to go long. Builds the strongest bull case. Never exits easily.
 - 🔵 **Reaper** — Not a bear, but a realist: is the current risk worth staying in?
 - ⚖️ **Fulcrum** — The system's damper. Default stance is HOLD; any aggressive action must overcome resistance from both other agents. Decision stability comes from structure, not from smoothing historical data or averaging multiple samples.
+
+A fourth agent sits **outside** the debate:
+
+- 📜 **Chronicler** — Archivist, moderator, and synthesizer. Holds no market view and never touches raw data. Watches every round, decides whether to continue or terminate based on information increment, and — once the debate concludes — synthesizes the final report from the argument chains alone. Separating the chronicler from Fulcrum keeps each role honest: debaters debate, the record-keeper records.
 
 **Key design insight:** The mirror of an optimist is not a pessimist, but a profit-taker. Reaper doesn't ask "will it drop?" but "is it still worth holding?"
 
@@ -38,11 +42,11 @@ Each agent holds a fixed investment philosophy and must complete a structured de
 
 ![flowchart](images/flowchart.png)
 
-**Stage 1 — Independent Initialization:** All three agents receive the same raw data simultaneously and form judgments independently, with no communication.
+**Stage 1 — Independent Initialization:** All three debaters receive the same raw data simultaneously and form judgments independently, with no communication.
 
-**Stage 2 — Open Debate:** After seeing each other's initial positions, agents engage in multi-round debate. The debate constitution requires each round to introduce new evidence or new angles — restating one's position doesn't count as valid argument, and rhetorical intensity doesn't equal argument strength.
+**Stage 2 — Open Debate:** After seeing each other's initial positions, agents engage in multi-round debate. The debate constitution requires each round to introduce new evidence or new angles — restating one's position doesn't count as valid argument, and rhetorical intensity doesn't equal argument strength. After each round, the Chronicler decides whether to continue or terminate.
 
-**Stage 3 — Report & Signatures:** Fulcrum writes the final report with actionable instructions (BUY/SELL/HOLD + position size + entry/stop conditions); Zealot and Reaper each attach a minority signature recording dissent — users with different risk appetites can reference these.
+**Stage 3 — Report & Signatures:** The Chronicler synthesizes the final report with actionable instructions (BUY/SELL/HOLD + position size + entry/stop conditions), strictly within the envelope formed by the three debaters' final stances; Zealot, Reaper, and Fulcrum each attach a signature recording their own final position — users with different risk appetites can reference these.
 
 ---
 
@@ -217,11 +221,15 @@ pip install -r requirements.txt
 
 Edit `config/models.yaml` to add the models you want to use. You only need two or three (the author runs on Alibaba Cloud and uses DeepSeek + Qwen daily). Choose models that are smart enough and have long context windows.
 
-`workflows/llm_client.py` contains a `role_mapping` that determines which model each role uses, indexed by key name in models.yaml. Temperature has role-specific presets: Zealot 0.9, Reaper 0.8, Fulcrum 0.3 — adversarial roles need more exploration; Fulcrum is a stubborn damper by design and also handles report writing and debate moderation (deciding whether another round is needed), so it requires low temperature for stability.
+`workflows/llm_client.py` contains a `role_mapping` that determines which model each role uses, indexed by key name in models.yaml. Temperature has role-specific presets:
+
+- **Zealot 0.9, Reaper 0.8** — adversarial debaters need more exploration
+- **Fulcrum 0.3** — a stubborn damper; its job is to hold ground, not to improvise
+- **Chronicler 0.3** — the archivist and report writer; must stay faithful to what was actually said
 
 ```yaml
 # config/models.yaml
-default_model: "qwen3.5-plus"
+default_model: "qwen3.6-plus"
 
 models:
   qwen3-max:
@@ -292,10 +300,11 @@ apex_parliament/
 │   └── symbols.yaml                 # Analysis targets & IBKR contract mappings
 │
 ├── prompts/                         # Agent Prompts (Debate Constitution)
-│   ├── constitution/                # Three agents' soul definitions
-│   │   ├── zealot_soul.yaml         #   🔴 Zealot — always long
-│   │   ├── reaper_soul.yaml         #   🔵 Reaper — the realist
-│   │   ├── fulcrum_soul.yaml        #   ⚖️ Fulcrum — the damper
+│   ├── constitution/                # Agent soul definitions
+│   │   ├── zealot_soul.yaml         #   🔴 Zealot — always long (debater)
+│   │   ├── reaper_soul.yaml         #   🔵 Reaper — the realist (debater)
+│   │   ├── fulcrum_soul.yaml        #   ⚖️ Fulcrum — the damper (debater)
+│   │   ├── chronicler_soul.yaml     #   📜 Chronicler — archivist & synthesizer (outside debate)
 │   │   └── shared_rules.yaml        #   Shared debate rules
 │   ├── formats/                     # Output format templates
 │   │   ├── debate_output.yaml       #   Debate round output format
@@ -372,11 +381,15 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 
 ![triangle](images/triangle.png)
 
-三个 Agent 各自持有固定的投资哲学，在任何决策输出之前，必须先完成结构化辩论：
+三位辩论者各自持有固定的投资哲学，在任何决策输出之前，必须先完成结构化辩论：
 
 - 🔴 **Zealot**（狂热者）— 永远在找做多理由，构建最强的买入论据，绝不轻易出局
 - 🔵 **Reaper**（收割者）— 不是空头，是现实主义者：当前风险值不值得继续持有？
 - ⚖️ **Fulcrum**（支点）— 系统的阻尼器。默认立场是 HOLD，任何激进操作都需要同时突破另外两个 Agent 的阻力。不依赖历史数据平滑，不依赖多次采样取平均——决策的稳定性直接从结构中来。
+
+辩论桌之外还有第四位 Agent：
+
+- 📜 **Chronicler**（史官）— 档案员、秩序维护者与综合者。不持有任何市场立场，也不接触原始数据。旁听每一轮发言，根据信息增量判断是继续还是终止；辩论结束后，仅凭三方论证链撰写最终报告。把史官从 Fulcrum 身上分离出来，是为了让每个角色保持纯粹：辩论者专心辩论，记录者专心记录。
 
 **关键设计洞察：** 乐观者的镜像不是悲观者，而是止盈者。Reaper 问的不是"会不会跌"，而是"还值不值得拿"。
 
@@ -386,11 +399,11 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 
 ![flowchart](images/flowchart.png)
 
-**Stage 1 — 独立初始化：** 三个 Agent 同时收到相同的原始数据，各自独立形成判断，互不通信。
+**Stage 1 — 独立初始化：** 三位辩论者同时收到相同的原始数据，各自独立形成判断，互不通信。
 
-**Stage 2 — 自由辩论：** 看到彼此的初始判断后展开多轮辩论。辩论宪法规定每轮必须引入新论据或新角度——重复己方立场不算有效论证，修辞强度不等于论证强度。
+**Stage 2 — 自由辩论：** 看到彼此的初始判断后展开多轮辩论。辩论宪法规定每轮必须引入新论据或新角度——重复己方立场不算有效论证，修辞强度不等于论证强度。每轮结束后，由 Chronicler 判断是否进入下一轮。
 
-**Stage 3 — 报告与签名：** Fulcrum 撰写最终报告，输出可执行指令（BUY/SELL/HOLD + 仓位大小 + 入场/止损条件）；Zealot 和 Reaper 各附少数派签名，记录异议——风险偏好不同的使用者可以自行参考。
+**Stage 3 — 报告与签名：** Chronicler 综合三方论证链，在三方最终立场构成的包络区间内撰写最终报告，输出可执行指令（BUY/SELL/HOLD + 仓位大小 + 入场/止损条件）；Zealot、Reaper、Fulcrum 各自附签自己最终轮的立场——风险偏好不同的使用者可以自行参考。
 
 ---
 
@@ -565,11 +578,15 @@ pip install -r requirements.txt
 
 编辑 `config/models.yaml`，按格式添加你要用的模型。不需要全部填写，配两三个即可（作者本人服务器在阿里云，日常只用 DeepSeek + Qwen）。建议选择足够聪明、上下文足够长的模型。
 
-`workflows/llm_client.py` 中的 `role_mapping` 决定了哪个角色使用哪个模型，按 models.yaml 中的 key 名索引。温度（temperature）有角色预设：Zealot 0.9、Reaper 0.8、Fulcrum 0.3 —— 对抗性角色需要更大的探索空间；Fulcrum 人设是顽固的阻尼器，同时兼任报告撰写和辩论秩序维护（判断是否需要下一轮），因此需要低温度保持稳定。
+`workflows/llm_client.py` 中的 `role_mapping` 决定了哪个角色使用哪个模型，按 models.yaml 中的 key 名索引。温度（temperature）有角色预设：
+
+- **Zealot 0.9、Reaper 0.8** —— 对抗性辩论者需要更大的探索空间
+- **Fulcrum 0.3** —— 顽固的阻尼器，职责是守住立场而不是发挥
+- **Chronicler 0.3** —— 档案员与报告撰写者，必须忠于辩论实际发生的内容
 
 ```yaml
 # config/models.yaml
-default_model: "qwen3.5-plus"
+default_model: "qwen3.6-plus"
 
 models:
   qwen3-max:
@@ -640,10 +657,11 @@ apex_parliament/
 │   └── symbols.yaml                 # 分析标的列表与 IBKR 合约映射
 │
 ├── prompts/                         # Agent 提示词（辩论宪法）
-│   ├── constitution/                # 三个 Agent 的灵魂设定
-│   │   ├── zealot_soul.yaml         #   🔴 Zealot - 永远做多
-│   │   ├── reaper_soul.yaml         #   🔵 Reaper - 现实主义者
-│   │   ├── fulcrum_soul.yaml        #   ⚖️ Fulcrum - 阻尼器
+│   ├── constitution/                # Agent 灵魂设定
+│   │   ├── zealot_soul.yaml         #   🔴 Zealot - 永远做多（辩论者）
+│   │   ├── reaper_soul.yaml         #   🔵 Reaper - 现实主义者（辩论者）
+│   │   ├── fulcrum_soul.yaml        #   ⚖️ Fulcrum - 阻尼器（辩论者）
+│   │   ├── chronicler_soul.yaml     #   📜 Chronicler - 史官（辩论之外的记录与综合）
 │   │   └── shared_rules.yaml        #   共享辩论规则
 │   ├── formats/                     # 输出格式模板
 │   │   ├── debate_output.yaml       #   辩论轮次输出格式

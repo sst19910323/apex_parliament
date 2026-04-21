@@ -76,28 +76,31 @@ class PromptManager:
     def get_output_format(self, agent: str, phase: str) -> str:
         """
         获取输出格式
-        agent: zealot / reaper / fulcrum
-        phase: init / debate / finalize / signoff
+        agent: zealot / reaper / fulcrum / chronicler
+        phase: init / debate / moderation / finalize / signoff
         """
         formats = self.prompts["formats"]
-        
+
         if phase == "init":
-            # 三方共用init_output
+            # 三方辩论者共用init_output
             return formats.get("debate_output", {}).get("init_output", "")
-        
+
         elif phase == "debate":
-            # 各自的debate输出
-            key = f"{agent}_debate_output"
-            return formats.get("debate_output", {}).get(key, "")
-        
+            # 三方辩论者共用debate_output（Fulcrum剥离仲裁职能后与Z/R同层）
+            return formats.get("debate_output", {}).get("debate_output", "")
+
+        elif phase == "moderation":
+            # Chronicler每轮结束后的CONTINUE/TERMINATE决策
+            return formats.get("debate_output", {}).get("chronicler_moderation_output", "")
+
         elif phase == "finalize":
-            # Fulcrum专用
+            # Chronicler写最终报告
             return formats.get("final_report_output", {}).get("final_report_output", "")
-        
+
         elif phase == "signoff":
-            # Zealot和Reaper签章
+            # Zealot / Reaper / Fulcrum 三方通用签章
             return formats.get("final_report_output", {}).get("signoff_output", "")
-        
+
         return ""
 
     def get_task_prompt(self, phase: str, task_type: str, data: Dict[str, Any]) -> str:
