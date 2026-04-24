@@ -73,9 +73,7 @@ raw_data_stock: |
   - 宏观与政治新闻: {general_news_data}
   - 经济基本面: {macro_data}
   - 市场情绪: {fear_greed_data}
-  - 标普500技术分析: {spx_data}
-  - 纳斯达克100技术分析: {ndx_data}
-  - 道琼斯工业指数技术分析: {indu_data}
+  - 市场基准ETF技术分析（SPY/QQQ/DIA，含盘前盘后成交量）: {benchmark_data}
 
   ### 标的专属数据
   - 标的: {symbol}
@@ -90,9 +88,7 @@ raw_data_etf: |
   - 宏观与政治新闻: {general_news_data}
   - 经济基本面: {macro_data}
   - 市场情绪: {fear_greed_data}
-  - 标普500技术分析: {spx_data}
-  - 纳斯达克100技术分析: {ndx_data}
-  - 道琼斯工业指数技术分析: {indu_data}
+  - 市场基准ETF技术分析（含盘前盘后成交量，不含本标的自身）: {benchmark_data}
 
   ### 标的专属数据
   - 标的: {symbol}
@@ -106,8 +102,6 @@ raw_data_general: |
   - 宏观与政治新闻: {general_news_data}
   - 经济基本面: {macro_data}
   - 市场情绪: {fear_greed_data}
-  - 标普500技术分析: {spx_data}
-  - 纳斯达克100技术分析: {ndx_data}
-  - 道琼斯工业指数技术分析: {indu_data}
+  - 市场基准ETF技术分析（SPY/QQQ/DIA，含盘前盘后成交量）: {benchmark_data}
 
-  注：这是宏观市场分析，operation_target填写纳斯达克(NDX)预期点位数字。
+  注：这是宏观市场分析，operation_target填写QQQ预期价格（美元，保留2位小数）。

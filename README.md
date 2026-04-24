@@ -14,7 +14,7 @@ Apex Quant is an LLM-based multi-agent quantitative analysis framework. Its core
 
 The project started as a personal US stock analysis dashboard for friends in October 2025 and evolved into the triangular debate architecture you see today. Open-sourced alongside the paper.
 
-> **Language note:** Prompts, debate transcripts, and the frontend are currently in Chinese. However, the analysis output includes English fields for all key conclusions (summary, statement, drivers, risks, etc.) — see the [example data](#-example-data) below.
+> **Language note:** Prompts, debate transcripts, analysis output, and the frontend are currently Chinese-only. The bilingual `*_en` output fields were removed — writing both sides wasted tokens and made the Chronicler's output unreliable (one language would occasionally go missing). A dedicated translation layer that renders the final report into multiple languages will be added in a later release.
 
 ---
 
@@ -104,7 +104,8 @@ Each decision cycle is fed by the following data sources:
 
 | Data Type | Source | Description |
 |-----------|--------|-------------|
-| Stock & Index Prices | **Interactive Brokers (IBKR)** | Multi-timeframe candlesticks (1min / 5min / 1h / 1d), processed by `technical_snapshot_builder` for technical indicators and `trend_analyzer` for simplified trend lines |
+| Stock & ETF Prices | **Interactive Brokers (IBKR)** | Multi-timeframe candlesticks (1min / 5min / 1h / 1d), processed by `technical_snapshot_builder` (V15, session-aware) and `trend_analyzer` for simplified trend lines |
+| Macro Benchmarks | **Interactive Brokers (IBKR)** | **SPY / QQQ / DIA** ETFs — used instead of SPX/NDX/INDU indices because ETFs deliver continuous pre/post-market quotes with real volume |
 | Macroeconomic Indicators | **Alpha Vantage** | Federal funds rate, CPI, unemployment, GDP, treasury yields, etc. |
 | Company Fundamentals | **Alpha Vantage / Finnhub** | Earnings, valuation metrics |
 | Market News | **Finnhub** | Stock-specific news + general market news |
@@ -112,11 +113,13 @@ Each decision cycle is fed by the following data sources:
 
 > **Note:** IBKR market data requires an Interactive Brokers account and TWS/IB Gateway; Alpha Vantage and Finnhub offer free APIs (with rate limits).
 
+**V15 session-aware snapshot.** Each technical snapshot carries `instrument_metadata` and `session_context`, both auto-resolved from the latest 1-minute bar timestamp via `pandas_market_calendars` (handles DST and early-close days). The JSON is reorganized by data completeness — `current_snapshot / daily_technicals / hourly_technicals / weekly_snapshot / positioning / cross_timeframe_summary / price_structure` — and fields that would mislead the AI during pre/post-market (e.g. `volume_ratio_vs_20d_daily_avg`) are deliberately nulled out. When the primary target is SPY or QQQ itself, it is automatically deduplicated from the macro backdrop.
+
 ---
 
 ## 🗂️ Example Data
 
-The `data/examples/` directory contains selected core data from a GENERAL (market-wide) analysis cycle on March 23, 2026, showing what the system's main inputs and outputs look like.
+The `data/examples/` directory contains selected core data from a GENERAL (market-wide) analysis cycle on March 23, 2026, showing what the system's main inputs and outputs look like. These snapshots predate the V15 session-aware schema and the ETF-benchmark switch, so you'll see `SPX` and the older field names (e.g. `last_close`, `*_en` bilingual fields) — current runs use SPY/QQQ/DIA and the renamed fields (`last_price`, etc.).
 
 ```
 data/examples/
@@ -240,7 +243,7 @@ models:
   deepseek:
     api_key: "your_deepseek_api_key"
     base_url: "https://api.deepseek.com/v1"
-    model_id: "deepseek-chat"
+    model_id: "deepseek-v4-flash"
     temperature: 0.8
   # Add more models in the same format...
 ```
@@ -461,7 +464,8 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 
 | 数据类型 | 来源 | 说明 |
 |---------|------|------|
-| 股价 & 股指行情 | **Interactive Brokers (IBKR)** | 多时间尺度 K 线（1min / 5min / 1h / 1d），经 `technical_snapshot_builder` 计算技术指标，经 `trend_analyzer` 提取简化趋势线 |
+| 股票 & ETF 行情 | **Interactive Brokers (IBKR)** | 多时间尺度 K 线（1min / 5min / 1h / 1d），经 `technical_snapshot_builder` (V15 session-aware) 和 `trend_analyzer` 提取简化趋势线 |
+| 宏观基准 | **Interactive Brokers (IBKR)** | **SPY / QQQ / DIA** ETF —— 用 ETF 取代 SPX/NDX/INDU 指数，因为 ETF 在盘前盘后有连续报价和真实成交量 |
 | 宏观经济指标 | **Alpha Vantage** | 联邦基金利率、CPI、失业率、GDP、国债收益率等 |
 | 公司基本面 | **Alpha Vantage / Finnhub** | 财报、估值指标 |
 | 市场新闻 | **Finnhub** | 个股新闻 + 大盘新闻 |
@@ -469,11 +473,13 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 
 > **注意：** IBKR 行情需要盈透证券账户和 TWS/IB Gateway；Alpha Vantage 和 Finnhub 提供免费 API（有调用频率限制）。
 
+**V15 session-aware 量化快照。** 每份技术快照都带有 `instrument_metadata` 和 `session_context`，由最新一根 1 分钟 bar 的时间戳通过 `pandas_market_calendars` 自动判定（正确处理夏令时和早收盘日）。JSON 按"数据完整性"重组：`current_snapshot / daily_technicals / hourly_technicals / weekly_snapshot / positioning / cross_timeframe_summary / price_structure`；盘前盘后会误导 AI 的字段（如 `volume_ratio_vs_20d_daily_avg`）会被主动置 null。当分析目标本身就是 SPY 或 QQQ 时，它会从宏观背景中自动去重。
+
 ---
 
 ## 🗂️ 示例数据
 
-`data/examples/` 目录包含 2026 年 3 月 23 日 GENERAL（大盘）分析周期的部分核心数据，展示系统主要的输入输出长什么样。
+`data/examples/` 目录包含 2026 年 3 月 23 日 GENERAL（大盘）分析周期的部分核心数据，展示系统主要的输入输出长什么样。这些快照早于 V15 session-aware schema 以及 ETF 基准切换，所以你会看到 `SPX` 和旧字段名（如 `last_close`、`*_en` 双语字段）——当前版本已改用 SPY/QQQ/DIA，字段也重命名（`last_price` 等）。
 
 ```
 data/examples/
@@ -597,7 +603,7 @@ models:
   deepseek:
     api_key: "your_deepseek_api_key"
     base_url: "https://api.deepseek.com/v1"
-    model_id: "deepseek-chat"
+    model_id: "deepseek-v4-flash"
     temperature: 0.8
   # 按相同格式添加更多模型...
 ```

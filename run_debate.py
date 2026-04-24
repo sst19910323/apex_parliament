@@ -178,9 +178,9 @@ class DebateEngine:
             if paths:
                 if 'symbol' in paths and 'technical' in paths['symbol']:
                     file_path_str = paths['symbol']['technical']
-                elif 'indices' in paths and 'SPX' in paths['indices']: 
-                    file_path_str = paths['indices']['SPX']
-            
+                elif 'benchmarks' in paths and 'SPY' in paths['benchmarks']:
+                    file_path_str = paths['benchmarks']['SPY']
+
             if file_path_str:
                 match = re.search(r"(\d{8}T\d{6}Z)", str(file_path_str))
                 if match:
@@ -189,7 +189,7 @@ class DebateEngine:
             logger.error(f"Filename extraction failed: {e}")
 
         # 备用方案：从 JSON 内容里找
-        tech_data_str = raw_data.get('tech_data') or raw_data.get('spx_data')
+        tech_data_str = raw_data.get('tech_data') or raw_data.get('benchmark_data')
         if tech_data_str:
             try:
                 # 假设是 json string
@@ -254,8 +254,7 @@ if __name__ == "__main__":
             "general_news_data": "测试新闻数据",
             "macro_data": "测试宏观数据",
             "fear_greed_data": "测试情绪数据",
-            "spx_data": "测试SPX数据",
-            "ndx_data": "测试NDX数据"
+            "benchmark_data": "#### SPY\n测试SPY数据\n\n#### QQQ\n测试QQQ数据\n\n#### DIA\n测试DIA数据",
         }
         
         print("\n📋 Graph structure:")

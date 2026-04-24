@@ -1,6 +1,7 @@
 # -----------------------------------------------------------------
 # 文件路径: prompts/formats/final_report_output.yaml
 # 最终报告输出格式（XML版 - 仅Chronicler）
+# 单中文核心版；未来若需多语言，走独立翻译层，不在 Chronicler 端产出。
 # -----------------------------------------------------------------
 
 final_report_output: |
@@ -8,7 +9,6 @@ final_report_output: |
 
   <final_report>
     <debate_summary><![CDATA[整场辩论的总结]]></debate_summary>
-    <debate_summary_en><![CDATA[English version of debate summary]]></debate_summary_en>
 
     <mentality>
       <item name="buy_the_dip" probability="0.7"/>
@@ -19,39 +19,27 @@ final_report_output: |
       <key_drivers>
         <driver direction="bullish" category="technical" weight="high">
           <factor><![CDATA[驱动因素名称]]></factor>
-          <factor_en><![CDATA[Driver name]]></factor_en>
           <evidence><![CDATA[具体证据1]]></evidence>
           <evidence><![CDATA[具体证据2]]></evidence>
-          <evidence_en><![CDATA[Evidence 1]]></evidence_en>
-          <evidence_en><![CDATA[Evidence 2]]></evidence_en>
         </driver>
       </key_drivers>
       <risks>
         <risk probability="medium" impact="high">
           <description><![CDATA[风险描述]]></description>
-          <description_en><![CDATA[Risk description]]></description_en>
           <mitigation><![CDATA[缓释措施]]></mitigation>
-          <mitigation_en><![CDATA[Mitigation action]]></mitigation_en>
           <trigger><![CDATA[监控触发条件]]></trigger>
-          <trigger_en><![CDATA[Monitoring trigger]]></trigger_en>
         </risk>
       </risks>
     </reasoning>
 
     <risk_management>
       <stop_loss><![CDATA[止损条件或价位]]></stop_loss>
-      <stop_loss_en><![CDATA[Stop loss condition]]></stop_loss_en>
       <take_profit><![CDATA[止盈条件或价位]]></take_profit>
-      <take_profit_en><![CDATA[Take profit condition]]></take_profit_en>
       <max_drawdown_tolerance>X%</max_drawdown_tolerance>
       <review_triggers>
         <trigger><![CDATA[复盘触发条件1]]></trigger>
         <trigger><![CDATA[条件2]]></trigger>
       </review_triggers>
-      <review_triggers_en>
-        <trigger><![CDATA[Trigger 1]]></trigger>
-        <trigger><![CDATA[Trigger 2]]></trigger>
-      </review_triggers_en>
     </risk_management>
 
     <action>[0-100整数]</action>
@@ -69,13 +57,12 @@ final_report_output: |
     </dissent>
 
     <statement><![CDATA[最终高确信度宣言]]></statement>
-    <statement_en><![CDATA[Final high conviction statement]]></statement_en>
   </final_report>
 
   ## 字段说明
 
   ### 辩论总结
-  - debate_summary / debate_summary_en: 整场辩论的总结，必须包括各方立场的演变轨迹、关键争议点、达成的共识、保留的分歧，以及最终action和operation的综合理由（基于三方立场的权衡）
+  - debate_summary: 整场辩论的总结，必须包括各方立场的演变轨迹、关键争议点、达成的共识、保留的分歧，以及最终action和operation的综合理由（基于三方立场的权衡）
 
   ### 心态
   - mentality: 1-5种最终心态及概率，列出显著项即可（总和通常为1，若心态复杂可略小于1，忽略极小项）
@@ -108,7 +95,7 @@ final_report_output: |
   - dissent: 记录三方(Zealot/Reaper/Fulcrum)的最终立场及保留意见
 
   ### 最终宣言
-  - statement / statement_en: 一句话高确信度宣言，概括最终决策的核心理由
+  - statement: 一句话高确信度宣言，概括最终决策的核心理由
 
   ## 重要原则
   - evidence必须来自raw_data，严禁编造

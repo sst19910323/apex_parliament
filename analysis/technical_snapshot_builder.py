@@ -2,13 +2,17 @@
 """
 analysis/technical_snapshot_builder.py
 
-(V14.1 - Strict 1m Timestamp)
-职责: 生成统一的技术分析 JSON 快照。
-修正:
-1. 时间戳提取逻辑回归严格模式：**只读取 '2d_1m' (1分钟线) 的文件名时间戳**。
-   - 既然系统要求必须凑齐4个数据源才能运行，那么时间戳必然由最细粒度的 1m 决定。
-   - 去除所有 fallback (5m/1h/1d)，避免时间戳错位。
-2. 保持 "No Latest" 逻辑，拒绝非法文件名。
+(V15.0 - Session-Aware Schema)
+Unified technical snapshot JSON builder with session awareness (pre-market/regular/after-hours/closed).
+
+V15.0 changes:
+- Session classified from the latest 1m bar's timestamp (not datetime.now()); DST and early-close days handled via pandas_market_calendars.
+- New top-level blocks: instrument_metadata + session_context.
+- Features regrouped by data completeness: current_snapshot / daily_technicals / hourly_technicals / weekly_snapshot / positioning / cross_timeframe_summary / price_structure.
+- Session-specific fields are set to null when not applicable (change_since_regular_open_pct / vwap_dist_pct / volume_ratio_vs_20d_daily_avg).
+- Field renames: last_close->last_price, daily_change_percent->change_vs_prior_regular_close_pct,
+  intraday_trend_vs_open->change_since_regular_open_pct, intraday_vwap_dist_pct->vwap_dist_pct,
+  volume_ratio_vs_avg_daily->volume_ratio_vs_20d_daily_avg, intraday_volume_ratio_vs_avg->volume_ratio_5m_vs_20bar_avg.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any
 
 import pandas as pd
+import pandas_market_calendars as mcal
 import pandas_ta as ta
 import yaml
 
@@ -44,103 +49,210 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 
-# ───────────────────── Feature Set Definitions ───────────────────── #
+# ───────────────────── Feature Set & Grouping (V15.0) ───────────────────── #
 
-UNIFIED_FEATURES = [
-    # --- Minute Level (微观) ---
-    "last_close", "last_wap", 
-    "intraday_vwap_dist_pct", 
-    "intraday_volume_ratio_vs_avg", 
-    "intraday_trend_vs_open",
-    "price_change_pct_5m", 
-    "rsi_14_5min", "atr_14_5min", 
-    "liquidity_score_vol_per_bar",
-    
-    # --- Hourly Level (战术) ---
-    "ma_20_hourly_val", 
-    "ma_50_hourly_val", 
-    "ma_20_slope_pct_hourly", 
-    "rsi_14_hourly", 
-    "macd_hist_hourly", 
-    "atr_14_hourly", 
-    "bb_pct_b_hourly", 
-    "volume_ratio_vs_avg_hourly",
-    
-    # 战术趋势 (L2 衔接层)
-    "price_structure_tactical", 
-
-    # 🔥 [L3] 微观热机流 (核心)
-    "micro_flow_engine",
-
-    # --- Daily Level (日线) ---
-    "daily_change_percent", 
-    "ma_20_daily_val", "ma_50_daily_val", "ma_200_daily_val", 
-    "ma_cross_status", 
-    "ma_alignment", 
-    "rsi_14_daily", 
-    "macd_hist_daily", 
-    "atr_14_daily_percent", 
-    "bb_pct_b_daily", 
-    "bb_width_pct_daily", 
-    "volume_ratio_vs_avg_daily", 
-    "obv_slope_5d", 
-    "volatility_regime_daily", 
-    "recent_gaps", 
-    "consolidation_days", 
-
-    # --- Weekly Level (周线) ---
-    "ma_40_weekly_val", "ma_200_weekly_val",
-
-    # --- Contextual / Strategic (战略) ---
-    "market_session", 
-    "percent_from_52w_high_low", 
-    "nearest_support_resistance", 
-    "max_drawdown_30d", "sharpe_ratio_30d",
-    "relative_strength_vs_spy", "correlation_vs_spy", "beta",
-    "cross_timeframe_trend_alignment", "cross_timeframe_momentum_score",
-    
-    # 战略趋势 (L1)
-    "price_structure_strategic"
-]
-
-# 映射表：指标 -> JSON Group
 FEATURE_GROUP_MAP = {
-    # Minute
-    "last_close": "minute_level_features", "last_wap": "minute_level_features", 
-    "intraday_vwap_dist_pct": "minute_level_features", "intraday_volume_ratio_vs_avg": "minute_level_features", 
-    "intraday_trend_vs_open": "minute_level_features", "price_change_pct_5m": "minute_level_features",
-    "rsi_14_5min": "minute_level_features", "atr_14_5min": "minute_level_features", 
-    "liquidity_score_vol_per_bar": "minute_level_features",
+    # --- current_snapshot: live session-aware data ---
+    "last_price": "current_snapshot",
+    "last_wap": "current_snapshot",
+    "change_vs_prior_regular_close_pct": "current_snapshot",
+    "change_since_regular_open_pct": "current_snapshot",       # regular / after-hours only; else null
+    "vwap_dist_pct": "current_snapshot",                        # regular only; else null
+    "volume_ratio_vs_20d_daily_avg": "current_snapshot",        # null during pre-market (partial-day volume misleads)
+    "volume_ratio_5m_vs_20bar_avg": "current_snapshot",
+    "price_change_pct_5m": "current_snapshot",
+    "rsi_14_5min": "current_snapshot",
+    "atr_14_5min": "current_snapshot",
+    "liquidity_score_vol_per_bar": "current_snapshot",
 
-    # Hourly
-    "ma_20_hourly_val": "hourly_features", "ma_50_hourly_val": "hourly_features", 
-    "ma_20_slope_pct_hourly": "hourly_features",
-    "rsi_14_hourly": "hourly_features", "macd_hist_hourly": "hourly_features", "atr_14_hourly": "hourly_features",
-    "bb_pct_b_hourly": "hourly_features", "volume_ratio_vs_avg_hourly": "hourly_features",
-    "price_structure_tactical": "hourly_features",
-    
-    "micro_flow_engine": "MICRO_FLOW_ENGINE",
+    # --- daily_technicals: 日线级指标 ---
+    "ma_20_daily_val": "daily_technicals",
+    "ma_50_daily_val": "daily_technicals",
+    "ma_200_daily_val": "daily_technicals",
+    "rsi_14_daily": "daily_technicals",
+    "macd_hist_daily": "daily_technicals",
+    "atr_14_daily_percent": "daily_technicals",
+    "bb_pct_b_daily": "daily_technicals",
+    "bb_width_pct_daily": "daily_technicals",
+    "ma_cross_status": "daily_technicals",
+    "ma_alignment": "daily_technicals",
+    "obv_slope_5d": "daily_technicals",
+    "volatility_regime_daily": "daily_technicals",
+    "recent_gaps": "daily_technicals",
+    "consolidation_days": "daily_technicals",
 
-    # Daily
-    "daily_change_percent": "daily_features", 
-    "ma_20_daily_val": "daily_features", "ma_50_daily_val": "daily_features", "ma_200_daily_val": "daily_features",
-    "ma_cross_status": "daily_features", "ma_alignment": "daily_features",
-    "rsi_14_daily": "daily_features", "macd_hist_daily": "daily_features", "atr_14_daily_percent": "daily_features",
-    "bb_pct_b_daily": "daily_features", "bb_width_pct_daily": "daily_features",
-    "volume_ratio_vs_avg_daily": "daily_features", "obv_slope_5d": "daily_features", 
-    "volatility_regime_daily": "daily_features", "recent_gaps": "daily_features", "consolidation_days": "daily_features",
+    # --- hourly_technicals ---
+    "ma_20_hourly_val": "hourly_technicals",
+    "ma_50_hourly_val": "hourly_technicals",
+    "ma_20_slope_pct_hourly": "hourly_technicals",
+    "rsi_14_hourly": "hourly_technicals",
+    "macd_hist_hourly": "hourly_technicals",
+    "atr_14_hourly": "hourly_technicals",
+    "bb_pct_b_hourly": "hourly_technicals",
+    "volume_ratio_vs_avg_hourly": "hourly_technicals",
 
-    # Weekly
-    "ma_40_weekly_val": "weekly_features", "ma_200_weekly_val": "weekly_features",
+    # --- weekly_snapshot ---
+    "ma_40_weekly_val": "weekly_snapshot",
+    "ma_200_weekly_val": "weekly_snapshot",
 
-    # Contextual
-    "market_session": "contextual_features", "percent_from_52w_high_low": "contextual_features",
-    "nearest_support_resistance": "contextual_features", "relative_strength_vs_spy": "contextual_features",
-    "correlation_vs_spy": "contextual_features", "beta": "contextual_features", 
-    "max_drawdown_30d": "contextual_features", "sharpe_ratio_30d": "contextual_features", 
-    "cross_timeframe_trend_alignment": "contextual_features", "cross_timeframe_momentum_score": "contextual_features",
-    "price_structure_strategic": "contextual_features"
+    # --- positioning ---
+    "percent_from_52w_high_low": "positioning",
+    "nearest_support_resistance": "positioning",
+    "max_drawdown_30d": "positioning",
+    "sharpe_ratio_30d": "positioning",
+    "relative_strength_vs_spy": "positioning",
+    "correlation_vs_spy": "positioning",
+    "beta": "positioning",
+
+    # --- cross_timeframe_summary ---
+    "cross_timeframe_trend_alignment": "cross_timeframe_summary",
+    "cross_timeframe_momentum_score": "cross_timeframe_summary",
+
+    # --- price_structure (nested) ---
+    "price_structure_tactical": "price_structure",
+    "price_structure_strategic": "price_structure",
+    "micro_flow_engine": "price_structure",
 }
+
+# Subkey mapping under "price_structure" (strip legacy prefix)
+PRICE_STRUCTURE_SUBKEY = {
+    "price_structure_tactical": "tactical",
+    "price_structure_strategic": "strategic",
+    "micro_flow_engine": "micro_flow_engine",
+}
+
+UNIFIED_FEATURES = list(FEATURE_GROUP_MAP.keys())
+
+
+# ───────────────────── Session Classification (V15.0) ───────────────────── #
+
+PREMARKET_START_ET_HOUR = 4   # 04:00 ET
+AFTERHOURS_END_ET_HOUR = 20   # 20:00 ET
+
+_NYSE_CALENDAR = None
+
+def get_nyse_calendar():
+    global _NYSE_CALENDAR
+    if _NYSE_CALENDAR is None:
+        _NYSE_CALENDAR = mcal.get_calendar('NYSE')
+    return _NYSE_CALENDAR
+
+
+def classify_session(bar_ts_utc: pd.Timestamp) -> Dict[str, Any]:
+    """
+    Classify the market session for a UTC bar timestamp.
+    Regular-session bounds come from the NYSE calendar (DST + early-close aware).
+      pre-market:  04:00 ET -> reg_open
+      after-hours: reg_close -> 20:00 ET
+    """
+    if bar_ts_utc.tzinfo is None:
+        bar_ts_utc = bar_ts_utc.tz_localize('UTC')
+    else:
+        bar_ts_utc = bar_ts_utc.tz_convert('UTC')
+
+    et_ts = bar_ts_utc.tz_convert('America/New_York')
+    date_et = et_ts.date()
+
+    nyse = get_nyse_calendar()
+    schedule = nyse.schedule(start_date=date_et, end_date=date_et)
+
+    if schedule.empty:
+        return {
+            "current_session": "closed",
+            "elapsed_minutes": None,
+            "latest_bar_et": et_ts.isoformat(),
+            "reg_open_utc": None,
+            "reg_close_utc": None,
+        }
+
+    reg_open_utc = pd.Timestamp(schedule.iloc[0]['market_open']).tz_convert('UTC')
+    reg_close_utc = pd.Timestamp(schedule.iloc[0]['market_close']).tz_convert('UTC')
+
+    premarket_start_utc = pd.Timestamp(
+        datetime(date_et.year, date_et.month, date_et.day, PREMARKET_START_ET_HOUR)
+    ).tz_localize('America/New_York').tz_convert('UTC')
+    afterhours_end_utc = pd.Timestamp(
+        datetime(date_et.year, date_et.month, date_et.day, AFTERHOURS_END_ET_HOUR)
+    ).tz_localize('America/New_York').tz_convert('UTC')
+
+    if bar_ts_utc < premarket_start_utc or bar_ts_utc >= afterhours_end_utc:
+        session = "closed"
+        elapsed = None
+    elif bar_ts_utc < reg_open_utc:
+        session = "pre-market"
+        elapsed = int((bar_ts_utc - premarket_start_utc).total_seconds() / 60)
+    elif bar_ts_utc < reg_close_utc:
+        session = "regular"
+        elapsed = int((bar_ts_utc - reg_open_utc).total_seconds() / 60)
+    else:
+        session = "after-hours"
+        elapsed = int((bar_ts_utc - reg_close_utc).total_seconds() / 60)
+
+    return {
+        "current_session": session,
+        "elapsed_minutes": elapsed,
+        "latest_bar_et": et_ts.isoformat(),
+        "reg_open_utc": reg_open_utc,
+        "reg_close_utc": reg_close_utc,
+    }
+
+
+def get_prior_regular_close_et(bar_ts_utc: pd.Timestamp) -> Optional[str]:
+    """Close timestamp (ET ISO string) of the most recent completed regular session."""
+    if bar_ts_utc.tzinfo is None:
+        bar_ts_utc = bar_ts_utc.tz_localize('UTC')
+    else:
+        bar_ts_utc = bar_ts_utc.tz_convert('UTC')
+
+    nyse = get_nyse_calendar()
+    end_date = bar_ts_utc.tz_convert('America/New_York').date()
+    start_date = end_date - pd.Timedelta(days=14)
+    schedule = nyse.schedule(start_date=start_date, end_date=end_date)
+
+    if schedule.empty:
+        return None
+
+    completed = schedule[schedule['market_close'] < bar_ts_utc]
+    if completed.empty:
+        return None
+
+    last_close = pd.Timestamp(completed.iloc[-1]['market_close'])
+    if last_close.tzinfo is None:
+        last_close = last_close.tz_localize('UTC')
+    return last_close.tz_convert('America/New_York').isoformat()
+
+
+def load_instrument_metadata(symbol: str, symbols_config_path: Optional[Path] = None) -> Dict[str, Any]:
+    """
+    Resolve instrument type from symbols.yaml analysis_targets.
+      stocks -> "stock" | etfs -> "etf" | benchmarks -> "benchmark" | else -> "unknown"
+    """
+    if symbols_config_path is None:
+        symbols_config_path = Path(__file__).resolve().parents[1] / "config/symbols.yaml"
+
+    inst_type = "unknown"
+    try:
+        if symbols_config_path.exists():
+            with open(symbols_config_path, encoding='utf-8') as f:
+                cfg = yaml.safe_load(f)
+            targets = cfg.get('analysis_targets', {}) or {}
+            sym_upper = symbol.upper()
+            if sym_upper in [s.upper() for s in targets.get('stocks', []) or []]:
+                inst_type = "stock"
+            elif sym_upper in [s.upper() for s in targets.get('etfs', []) or []]:
+                inst_type = "etf"
+            elif sym_upper in [s.upper() for s in targets.get('benchmarks', []) or []]:
+                inst_type = "benchmark"
+    except Exception as e:
+        log.warning(f"load_instrument_metadata failed for {symbol}: {e}")
+
+    # Current stock / etf / benchmark all have volume + extended hours.
+    # Reserved "index" type (e.g. if SPX/NDX are re-added) should set both flags to False.
+    return {
+        "instrument_type": inst_type,
+        "has_volume": True,
+        "has_extended_hours": True,
+    }
 
 
 # ──────────────────────────── Config & File Loading ──────────────────────────── #
@@ -180,13 +292,13 @@ def extract_time_tag_from_filename(csv_path: Path) -> Optional[str]:
         candidate = parts[-1]
         
         if candidate == "LATEST":
-            log.warning(f"⛔ Ignored legacy 'LATEST' file: {csv_path.name}")
+            log.warning(f"[SKIP] Ignored legacy 'LATEST' file: {csv_path.name}")
             return None
-            
+
         if ("T" in candidate and candidate.endswith("Z")) or candidate.isdigit():
             return candidate
-            
-        log.warning(f"⛔ Invalid time format '{candidate}' in {csv_path.name}. Ignoring.")
+
+        log.warning(f"[SKIP] Invalid time format '{candidate}' in {csv_path.name}. Ignoring.")
         return None
         
     except (ValueError, IndexError):
@@ -211,7 +323,7 @@ def get_latest_csv_for_resolution(symbol: str, cache_dir: Path, filename_duratio
     valid_files = [f for f in matching_files if extract_time_tag_from_filename(f) is not None]
     
     if not valid_files:
-        log.warning(f"⚠️ No valid timestamped files found for {symbol} (found {len(matching_files)} invalid/legacy).")
+        log.warning(f"[WARN] No valid timestamped files found for {symbol} (found {len(matching_files)} invalid/legacy).")
         return None
     
     # 按 mtime 排序取最新
@@ -390,62 +502,84 @@ def get_benchmark_data(symbol: str, config: dict) -> Optional[pd.DataFrame]:
 
 # ─────────────────────── Indicator Calculation ─────────────────────── #
 
-def calculate_all_features(data_frames: Dict[str, pd.DataFrame], config: dict) -> Dict[str, Any]:
+def calculate_all_features(
+    data_frames: Dict[str, pd.DataFrame],
+    config: dict,
+    session_info: Dict[str, Any],
+) -> Dict[str, Any]:
     """
-    计算所有技术指标特征 (硬核数据版)
+    Compute all technical indicators with session-aware null handling (V15.0).
+    session_info is produced by classify_session() against the latest 1m bar.
     """
     features = {}
-    
+
     df_1m = data_frames.get("1m")
     df_5m = data_frames.get("5m")
     df_1h = data_frames.get("1h")
     df_1d = data_frames.get("1d")
     df_1w = data_frames.get("1w")
-    
-    BENCHMARK_SYMBOL = "SPY" 
+
+    BENCHMARK_SYMBOL = "SPY"
     df_spy_1d = get_benchmark_data(BENCHMARK_SYMBOL, config)
 
-    # ──────────────── 1. Minute Level ──────────────── #
+    current_session = session_info.get("current_session", "closed")
+    reg_open_utc = session_info.get("reg_open_utc")
+    is_regular = current_session == "regular"
+    is_regular_or_after = current_session in ("regular", "after-hours")
+    is_premarket = current_session == "pre-market"
+
+    # ──────────────── 1. Current Snapshot (minute / 5m level) ──────────────── #
     try:
         latest_1m = df_1m.iloc[-1]
-        today_1m = df_1m[df_1m.index.date == latest_1m.name.date()]
-        
+
         features["latest_data_timestamp_iso"] = latest_1m.name.isoformat()
-        features["last_close"] = safe_float(latest_1m["close"])
+        features["last_price"] = safe_float(latest_1m["close"])
         features["last_wap"] = safe_float(latest_1m["wap"])
-        
-        if not today_1m.empty:
-            vol_col = "volume" if "volume" in today_1m.columns else None
-            if vol_col and today_1m[vol_col].sum() > 0:
-                vwap = (today_1m["wap"] * today_1m[vol_col]).sum() / today_1m[vol_col].sum()
-            else:
-                vwap = latest_1m["close"]
-                
-            if vwap > 0:
-                dist = (latest_1m["close"] - vwap) / vwap * 100
-                features["intraday_vwap_dist_pct"] = safe_float(dist, 2) 
-            
-            features["intraday_trend_vs_open"] = safe_float((latest_1m["close"] - today_1m.iloc[0]["open"]) / today_1m.iloc[0]["open"] * 100, 2)
-        
+
+        # change_since_regular_open_pct: anchored to today's regular session open
+        # Populated during regular/after-hours; null in pre-market/closed.
+        change_since_reg_open = None
+        if is_regular_or_after and reg_open_utc is not None:
+            today_regular = df_1m[df_1m.index >= reg_open_utc]
+            if not today_regular.empty:
+                open_price = today_regular.iloc[0]["open"]
+                if open_price and open_price > 0:
+                    change_since_reg_open = (latest_1m["close"] - open_price) / open_price * 100
+        features["change_since_regular_open_pct"] = safe_float(change_since_reg_open, 2)
+
+        # vwap_dist_pct: regular-session VWAP only; null otherwise
+        vwap_dist = None
+        if is_regular and reg_open_utc is not None:
+            today_regular = df_1m[df_1m.index >= reg_open_utc]
+            if not today_regular.empty and "volume" in today_regular.columns:
+                vol_sum = today_regular["volume"].sum()
+                if vol_sum > 0:
+                    vwap = (today_regular["wap"] * today_regular["volume"]).sum() / vol_sum
+                    if vwap > 0:
+                        vwap_dist = (latest_1m["close"] - vwap) / vwap * 100
+        features["vwap_dist_pct"] = safe_float(vwap_dist, 2)
+
+        # 5m rolling volume ratio: always meaningful (rolling window)
         df_5m_ta = df_5m.copy()
         df_5m_ta["volume_sma20"] = df_5m_ta["volume"].rolling(20).mean()
         latest_5m = df_5m_ta.iloc[-1]
-        features["intraday_volume_ratio_vs_avg"] = safe_float(latest_5m["volume"] / latest_5m["volume_sma20"] if latest_5m["volume_sma20"] > 0 else None, 2)
-        
+        vol_ratio_5m = (latest_5m["volume"] / latest_5m["volume_sma20"]) if latest_5m["volume_sma20"] > 0 else None
+        features["volume_ratio_5m_vs_20bar_avg"] = safe_float(vol_ratio_5m, 2)
+
         features["price_change_pct_5m"] = safe_float(df_5m["close"].pct_change(1).iloc[-1] * 100, 2)
-        
+
         df_5m_ta.ta.rsi(length=14, append=True)
         df_5m_ta.ta.atr(length=14, append=True)
         features["rsi_14_5min"] = safe_float(df_5m_ta.iloc[-1].get("RSI_14"), 2)
         features["atr_14_5min"] = safe_float(df_5m_ta.iloc[-1].get("ATRr_14"), 4)
-        
+
         if "barcount" in df_1m.columns:
             avg_barcount = df_1m.iloc[-60:]["barcount"].mean()
             if avg_barcount > 0:
                 features["liquidity_score_vol_per_bar"] = safe_float(latest_1m["volume"] / avg_barcount, 2)
-        
+
     except Exception as e:
-        log.error(f"Failed calculating minute_level_features: {e}")
+        log.error(f"Failed calculating current_snapshot features: {e}", exc_info=True)
 
     # ──────────────── 2. Hourly Level ──────────────── #
     try:
@@ -520,8 +654,10 @@ def calculate_all_features(data_frames: Dict[str, pd.DataFrame], config: dict) -
         df_1d_ta["volume_sma20"] = df_1d_ta["volume"].rolling(20).mean()
         
         latest_1d = df_1d_ta.iloc[-1]
-        
-        features["daily_change_percent"] = safe_float(df_1d_ta["close"].pct_change(1).iloc[-1] * 100, 2)
+
+        # change_vs_prior_regular_close_pct: always populated, belongs to current_snapshot group.
+        # During pre-market/after-hours this is the gap / extended-hours move vs the last regular close.
+        features["change_vs_prior_regular_close_pct"] = safe_float(df_1d_ta["close"].pct_change(1).iloc[-1] * 100, 2)
         features["ma_20_daily_val"] = safe_float(latest_1d.get("SMA_20"))
         features["ma_50_daily_val"] = safe_float(latest_1d.get("SMA_50"))
         features["ma_200_daily_val"] = safe_float(latest_1d.get("SMA_200"))
@@ -564,9 +700,14 @@ def calculate_all_features(data_frames: Dict[str, pd.DataFrame], config: dict) -
                 if latest_1d.get("SMA_20", 0) > 0:
                     features["bb_width_pct_daily"] = safe_float(width / latest_1d["SMA_20"] * 100, 2)
         
-        features["volume_ratio_vs_avg_daily"] = safe_float(
-            latest_1d["volume"] / latest_1d.get("volume_sma20", 1) if latest_1d.get("volume_sma20", 0) > 0 else None, 2
-        )
+        # volume_ratio_vs_20d_daily_avg: null during pre-market (today's daily bar is partial with
+        # negligible volume, ratio collapses to near-zero and misleads downstream readers).
+        if is_premarket:
+            features["volume_ratio_vs_20d_daily_avg"] = None
+        else:
+            features["volume_ratio_vs_20d_daily_avg"] = safe_float(
+                latest_1d["volume"] / latest_1d.get("volume_sma20", 1) if latest_1d.get("volume_sma20", 0) > 0 else None, 2
+            )
         
         if "OBV" in df_1d_ta.columns and len(df_1d_ta) >= 5:
             obv_now = latest_1d["OBV"]
@@ -604,19 +745,16 @@ def calculate_all_features(data_frames: Dict[str, pd.DataFrame], config: dict) -
     except Exception as e:
         log.error(f"Failed calculating weekly_features: {e}")
 
-    # ──────────────── 5. Contextual ──────────────── #
+    # ──────────────── 5. Positioning / Cross-timeframe / Strategic ──────────────── #
+    # Note: market session is now determined at a higher level (classify_session on latest 1m bar)
+    # and emitted under session_context in build_json_output.
     try:
-        now_utc = datetime.now(timezone.utc)
-        if 13 <= now_utc.hour < 20: features["market_session"] = "Regular"
-        elif 8 <= now_utc.hour < 13: features["market_session"] = "Pre-Market"
-        else: features["market_session"] = "Post-Market"
-
         df_52w = df_1d.iloc[-252:]
         high_52w = df_52w["high"].max()
         low_52w = df_52w["low"].min()
-        last_close = features.get("last_close")
-        if last_close and (high_52w - low_52w) > 0:
-            features["percent_from_52w_high_low"] = safe_float((last_close - low_52w) / (high_52w - low_52w) * 100, 2)
+        last_price = features.get("last_price")
+        if last_price and (high_52w - low_52w) > 0:
+            features["percent_from_52w_high_low"] = safe_float((last_price - low_52w) / (high_52w - low_52w) * 100, 2)
         
         df_30d = df_1d.iloc[-30:]
         features["nearest_support_resistance"] = {"support": safe_float(df_30d["low"].min()), "resistance": safe_float(df_30d["high"].max())}
@@ -685,29 +823,43 @@ def calculate_all_features(data_frames: Dict[str, pd.DataFrame], config: dict) -
 # ─────────────────────── JSON Building & Saving ─────────────────────── #
 
 def build_json_output(
-    all_features: Dict[str, Any], 
-    feature_list: List[str], 
+    all_features: Dict[str, Any],
+    feature_list: List[str],
     group_map: Dict[str, str],
     symbol: str,
-    timestamp_iso: str
+    timestamp_iso: str,
+    instrument_metadata: Dict[str, Any],
+    session_context: Dict[str, Any],
 ) -> Dict[str, Any]:
+    """
+    Assemble the V15.0 session-aware JSON output.
+    Top-level layout:
+      symbol, market_data_timestamp_utc, latest_data_timestamp,
+      instrument_metadata, session_context,
+      current_snapshot, daily_technicals, hourly_technicals,
+      weekly_snapshot, positioning, cross_timeframe_summary, price_structure
+    """
     output_json = {
         "symbol": symbol,
         "market_data_timestamp_utc": timestamp_iso,
-        "latest_data_timestamp": all_features.get("latest_data_timestamp_iso", timestamp_iso)
+        "latest_data_timestamp": all_features.get("latest_data_timestamp_iso", timestamp_iso),
+        "instrument_metadata": instrument_metadata,
+        "session_context": session_context,
     }
-    
+
     for key in feature_list:
-        if key in all_features:
-            group = group_map.get(key)
-            if not group:
-                continue
-            
-            if group not in output_json:
-                output_json[group] = {}
-            
-            output_json[group][key] = all_features[key]
-            
+        if key not in all_features:
+            continue
+        group = group_map.get(key)
+        if not group:
+            continue
+
+        if group == "price_structure":
+            sub_key = PRICE_STRUCTURE_SUBKEY.get(key, key)
+            output_json.setdefault(group, {})[sub_key] = all_features[key]
+        else:
+            output_json.setdefault(group, {})[key] = all_features[key]
+
     return output_json
 
 
@@ -752,37 +904,57 @@ def process_symbol_technical_analysis(
     )
     
     if not market_data_timestamp_str:
-        log.error(f"⛔ Analysis aborted for {symbol}: Missing or invalid 1m data timestamp.")
+        log.error(f"[ABORT] {symbol}: missing or invalid 1m data timestamp.")
         return None
-    
-    log.info(f"📅 Market data base timestamp: {market_data_timestamp_str}")
-    
-    # 定义单一输出路径 (ISO 命名)
+
+    log.info(f"Market data base timestamp: {market_data_timestamp_str}")
+
+    # Unified output path (ISO-named)
     symbol_output_dir = output_base_dir / symbol
     tech_path = symbol_output_dir / f"{symbol}_technical_{market_data_timestamp_str}.json"
-    
+
     if not force_update and tech_path.exists():
-        log.info(f"✓ Technical analysis already exists: {tech_path.name}")
-        log.info(f"  Skipping calculation (use force_update=True to regenerate)")
+        log.info(f"[OK] Technical analysis already exists: {tech_path.name}")
+        log.info("  Skipping calculation (use force_update=True to regenerate).")
         return tech_path
     
-    # 加载数据 (会自动校验 4 个周期是否齐全)
-    log.info("📊 Loading market data...")
+    # Load data (validates all 4 resolutions present)
+    log.info("Loading market data...")
     data_frames = load_all_dataframes(symbol, config, manual_paths)
     if not data_frames:
         log.error(f"Could not load all required dataframes for {symbol}. Aborting.")
         return None
-    
-    # 计算特征
-    log.info("🔬 Calculating all features...")
-    all_features = calculate_all_features(data_frames, config)
+
+    # Session classification from the latest 1m bar
+    latest_bar_ts = data_frames["1m"].index[-1]
+    session_info = classify_session(latest_bar_ts)
+    prior_close_et = get_prior_regular_close_et(latest_bar_ts)
+
+    session_context = {
+        "current_session": session_info["current_session"],
+        "elapsed_minutes": session_info["elapsed_minutes"],
+        "latest_bar_et": session_info["latest_bar_et"],
+        "prior_regular_close_et": prior_close_et,
+    }
+    log.info(
+        f"Session: {session_context['current_session']} "
+        f"(elapsed={session_context['elapsed_minutes']} min, "
+        f"latest_bar_et={session_context['latest_bar_et']})"
+    )
+
+    instrument_metadata = load_instrument_metadata(symbol)
+
+    # Feature calculation (session-aware)
+    log.info("Calculating all features...")
+    all_features = calculate_all_features(data_frames, config, session_info)
     log.info("Feature calculation complete.")
-    
-    # 构建统一 JSON
-    log.info("📝 Building Unified Technical JSON...")
+
+    # Build unified JSON (V15.0 structure)
+    log.info("Building unified technical JSON...")
     tech_json = build_json_output(
-        all_features, UNIFIED_FEATURES, FEATURE_GROUP_MAP, 
-        symbol, market_data_timestamp_str
+        all_features, UNIFIED_FEATURES, FEATURE_GROUP_MAP,
+        symbol, market_data_timestamp_str,
+        instrument_metadata, session_context,
     )
 
     # 保存
@@ -801,7 +973,7 @@ if __name__ == "__main__":
     tech_file = process_symbol_technical_analysis(symbol_to_run)
     
     if tech_file:
-        log.info(f"\n✓ Analysis complete for {symbol_to_run}")
+        log.info(f"\n[OK] Analysis complete for {symbol_to_run}")
         log.info(f"  Output file: {tech_file}")
     else:
-        log.error(f"\n✗ Analysis failed for {symbol_to_run}")
+        log.error(f"\n[FAIL] Analysis failed for {symbol_to_run}")

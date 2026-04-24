@@ -10,8 +10,7 @@ class RawData(TypedDict, total=False):
     general_news_data: Any
     macro_data: Any
     fear_greed_data: Any
-    spx_data: Any
-    ndx_data: Any
+    benchmark_data: Any  # SPY/QQQ/DIA 合并后的市场基准 ETF 技术分析文本（由 assembler 动态去重拼接）
     symbol: str
     profile_data: Any
     tech_data: Any

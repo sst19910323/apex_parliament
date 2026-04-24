@@ -19,14 +19,13 @@ logger = logging.getLogger(__name__)
 DEFAULT_FINAL_REPORT = {
     "final_report": {
         "debate_summary": "[解析失败]",
-        "debate_summary_en": "[Parse failed]",
         "mentality": [{"name": "wait_and_see", "probability": 1.0}],
         "reasoning": {"key_drivers": [], "risks": []},
         "risk_management": {
-            "stop_loss": "N/A", "stop_loss_en": "N/A",
-            "take_profit": "N/A", "take_profit_en": "N/A",
+            "stop_loss": "N/A",
+            "take_profit": "N/A",
             "max_drawdown_tolerance": "N/A",
-            "review_triggers": [], "review_triggers_en": []
+            "review_triggers": []
         },
         "action": 50,
         "operation_type": "HOLD_NEUTRAL",
@@ -34,10 +33,10 @@ DEFAULT_FINAL_REPORT = {
         "operation_volume": "N/A",
         "dissent": {
             "zealot_final_action": 50, "zealot_reservation": "N/A",
-            "reaper_final_action": 50, "reaper_reservation": "N/A"
+            "reaper_final_action": 50, "reaper_reservation": "N/A",
+            "fulcrum_final_action": 50, "fulcrum_reservation": "N/A"
         },
-        "statement": "[解析失败]",
-        "statement_en": "[Parse failed]"
+        "statement": "[解析失败]"
     }
 }
 
@@ -136,8 +135,8 @@ def _parse_final_strict(xml_str: str) -> Optional[Dict]:
     
     r = {}
     
-    # 简单文本字段
-    for field in ["debate_summary", "debate_summary_en", "statement", "statement_en",
+    # Simple text fields (zh-only core)
+    for field in ["debate_summary", "statement",
                    "action", "operation_type", "operation_target", "operation_volume"]:
         r[field] = _get_text(root, field, "")
     
@@ -162,12 +161,10 @@ def _parse_final_strict(xml_str: str) -> Optional[Dict]:
                 "category": drv.get("category", ""),
                 "weight": drv.get("weight", "medium"),
                 "factor": _get_text(drv, "factor"),
-                "factor_en": _get_text(drv, "factor_en"),
                 "evidence": _get_all_texts(drv, "evidence"),
-                "evidence_en": _get_all_texts(drv, "evidence_en"),
             }
             drivers.append(driver)
-    
+
     # reasoning.risks
     risks = []
     risks_elem = root.find(".//risks")
@@ -175,33 +172,27 @@ def _parse_final_strict(xml_str: str) -> Optional[Dict]:
         for rsk in risks_elem.findall("risk"):
             risk = {
                 "risk": _get_text(rsk, "description"),
-                "risk_en": _get_text(rsk, "description_en"),
                 "probability": rsk.get("probability", "medium"),
                 "impact": rsk.get("impact", "medium"),
                 "mitigation": _get_text(rsk, "mitigation"),
-                "mitigation_en": _get_text(rsk, "mitigation_en"),
                 "trigger": _get_text(rsk, "trigger"),
-                "trigger_en": _get_text(rsk, "trigger_en"),
             }
             risks.append(risk)
     
     r["reasoning"] = {"key_drivers": drivers, "risks": risks}
     
-    # risk_management
+    # risk_management (zh-only)
     rm_elem = root.find("risk_management")
     rm = {}
     if rm_elem is not None:
-        for field in ["stop_loss", "stop_loss_en", "take_profit", "take_profit_en",
-                       "max_drawdown_tolerance"]:
+        for field in ["stop_loss", "take_profit", "max_drawdown_tolerance"]:
             rm[field] = _get_text(rm_elem, field, "N/A")
-        
+
         rt_elem = rm_elem.find("review_triggers")
         rm["review_triggers"] = _get_all_texts(rt_elem, "trigger") if rt_elem is not None else []
-        rt_en_elem = rm_elem.find("review_triggers_en")
-        rm["review_triggers_en"] = _get_all_texts(rt_en_elem, "trigger") if rt_en_elem is not None else []
     r["risk_management"] = rm if rm else DEFAULT_FINAL_REPORT["final_report"]["risk_management"]
     
-    # dissent
+    # dissent (three-way: Zealot / Reaper / Fulcrum)
     dis_elem = root.find("dissent")
     dissent = {}
     if dis_elem is not None:
@@ -209,6 +200,8 @@ def _parse_final_strict(xml_str: str) -> Optional[Dict]:
         dissent["zealot_reservation"] = _get_text(dis_elem, "zealot_reservation", "N/A")
         dissent["reaper_final_action"] = _get_text(dis_elem, "reaper_final_action", "50")
         dissent["reaper_reservation"] = _get_text(dis_elem, "reaper_reservation", "N/A")
+        dissent["fulcrum_final_action"] = _get_text(dis_elem, "fulcrum_final_action", "50")
+        dissent["fulcrum_reservation"] = _get_text(dis_elem, "fulcrum_reservation", "N/A")
     r["dissent"] = dissent if dissent else DEFAULT_FINAL_REPORT["final_report"]["dissent"]
     
     if not r.get("debate_summary") and not r.get("action"):
@@ -219,24 +212,27 @@ def _parse_final_strict(xml_str: str) -> Optional[Dict]:
 
 
 def _parse_final_regex(text: str) -> Optional[Dict]:
-    """正则fallback提取final report字段"""
+    """Regex fallback for final_report extraction (zh-only core).
+    All expected text-field keys are always written (empty string fallback) so
+    downstream schema stays consistent regardless of which parser path ran.
+    """
     r = {}
     count = 0
-    
-    # 文本字段
-    for field in ["debate_summary", "debate_summary_en", "statement", "statement_en"]:
+
+    # Text fields: always write the key, even when extraction yields empty.
+    for field in ["debate_summary", "statement"]:
         val = _regex_cdata_or_plain(text, field)
+        r[field] = val  # may be ""
         if val:
-            r[field] = val
             count += 1
-    
-    # 简单字段
+
+    # Simple fields
     for field in ["action", "operation_type", "operation_target", "operation_volume"]:
         m = re.search(rf'<{field}>\s*(.*?)\s*</{field}>', text, re.DOTALL)
         if m:
             r[field] = m.group(1).strip()
             count += 1
-    
+
     # mentality
     mentality_items = re.findall(
         r'<item\s+(?:name=["\']([^"\']+)["\']\s+probability=["\']([^"\']+)["\']|probability=["\']([^"\']+)["\']\s+name=["\']([^"\']+)["\'])',
@@ -247,17 +243,21 @@ def _parse_final_regex(text: str) -> Optional[Dict]:
         for g in mentality_items if (g[0] or g[3])
     ]
     r["mentality"] = items if items else [{"name": "wait_and_see", "probability": 1.0}]
-    
-    # dissent
+
+    # dissent (three-way)
     dissent = {}
-    for field in ["zealot_final_action", "zealot_reservation", "reaper_final_action", "reaper_reservation"]:
+    for field in [
+        "zealot_final_action", "zealot_reservation",
+        "reaper_final_action", "reaper_reservation",
+        "fulcrum_final_action", "fulcrum_reservation",
+    ]:
         val = _regex_cdata_or_plain(text, field)
         if val: dissent[field] = val
     r["dissent"] = dissent if dissent else DEFAULT_FINAL_REPORT["final_report"]["dissent"]
-    
-    # risk_management 简单提取
+
+    # risk_management (zh-only scalar fields)
     rm = {}
-    for field in ["stop_loss", "stop_loss_en", "take_profit", "take_profit_en", "max_drawdown_tolerance"]:
+    for field in ["stop_loss", "take_profit", "max_drawdown_tolerance"]:
         val = _regex_cdata_or_plain(text, field)
         if val: rm[field] = val
     r["risk_management"] = rm if rm else DEFAULT_FINAL_REPORT["final_report"]["risk_management"]
@@ -273,28 +273,42 @@ def _parse_final_regex(text: str) -> Optional[Dict]:
 
 
 def _validate_final_report(data: Dict):
-    """校验并修正final report字段"""
+    """Validate and normalize final_report dict (zh-only core).
+    Guarantees:
+      1. Every key in DEFAULT_FINAL_REPORT["final_report"] exists in fr (missing
+         -> filled from default). Prevents "sometimes-missing field" drift
+         between strict/regex parse paths.
+      2. action / operation_type / operation_volume sanitized to enum-safe values.
+    """
     fr = data.get("final_report", {})
-    
+
+    # (1) Schema completion: fill any missing top-level key from default
+    import copy
+    for k, default_v in DEFAULT_FINAL_REPORT["final_report"].items():
+        if k not in fr:
+            fr[k] = copy.deepcopy(default_v)
+
+    # (2) action / operation_type / operation_volume sanitation
     fr["action"] = max(0, min(100, _safe_int(fr.get("action", 50))))
-    
+
     op_type = str(fr.get("operation_type", "HOLD_NEUTRAL")).upper().strip()
     valid_ops = {"MARKET_ENTRY", "LIMIT_ENTRY", "HOLD_NEUTRAL", "TRIM_POSITION", "LIQUIDATE_NOW"}
     fr["operation_type"] = op_type if op_type in valid_ops else "HOLD_NEUTRAL"
-    
+
     volume = str(fr.get("operation_volume", "N/A")).upper().strip()
     valid_vols = {"PILOT_SIZE", "STANDARD_SIZE", "AGGRESSIVE_SIZE", "N/A"}
     fr["operation_volume"] = volume if volume in valid_vols else "N/A"
-    
+
     if "operation_target" not in fr:
         fr["operation_target"] = "N/A"
-    
-    # dissent里的action也转int
-    dissent = fr.get("dissent", {})
+
+    # dissent: coerce action fields to int (three-way)
+    dissent = fr.get("dissent", {}) or {}
     dissent["zealot_final_action"] = _safe_int(dissent.get("zealot_final_action", 50))
     dissent["reaper_final_action"] = _safe_int(dissent.get("reaper_final_action", 50))
+    dissent["fulcrum_final_action"] = _safe_int(dissent.get("fulcrum_final_action", 50))
     fr["dissent"] = dissent
-    
+
     data["final_report"] = fr
 
 
@@ -384,8 +398,7 @@ def parse_signoff_response(raw_text: str, role: str = "unknown") -> Dict[str, An
 if __name__ == "__main__":
     test_xml = """
     <final_report>
-        <debate_summary><![CDATA[Zealot从75开始看多，主张技术面超卖反弹。Reaper从30看空，认为基本面恶化。经过3轮辩论，双方在55附近达成共识。]]></debate_summary>
-        <debate_summary_en><![CDATA[Zealot started bullish at 75, Reaper bearish at 30. After 3 rounds, consensus near 55.]]></debate_summary_en>
+        <debate_summary><![CDATA[Zealot从75开始看多，主张技术面超卖反弹。Reaper从30看空，认为基本面恶化。经过3轮辩论，三方在55附近达成共识。]]></debate_summary>
         <mentality>
             <item name="wait_for_confirmation" probability="0.5"/>
             <item name="buy_the_dip" probability="0.35"/>
@@ -394,44 +407,30 @@ if __name__ == "__main__":
             <key_drivers>
                 <driver direction="bullish" category="technical" weight="high">
                     <factor><![CDATA[RSI超卖反弹]]></factor>
-                    <factor_en><![CDATA[RSI oversold bounce]]></factor_en>
                     <evidence><![CDATA[RSI(14)=28，触及30以下超卖区]]></evidence>
                     <evidence><![CDATA[MACD柱状图收窄]]></evidence>
-                    <evidence_en><![CDATA[RSI(14)=28, hit oversold zone]]></evidence_en>
-                    <evidence_en><![CDATA[MACD histogram narrowing]]></evidence_en>
                 </driver>
                 <driver direction="bearish" category="fundamental" weight="medium">
                     <factor><![CDATA[营收增速放缓]]></factor>
-                    <factor_en><![CDATA[Revenue growth deceleration]]></factor_en>
                     <evidence><![CDATA[Q3营收同比+8%，Q2为+15%]]></evidence>
-                    <evidence_en><![CDATA[Q3 revenue YoY +8%, Q2 was +15%]]></evidence_en>
                 </driver>
             </key_drivers>
             <risks>
                 <risk probability="medium" impact="high">
                     <description><![CDATA[宏观加息预期升温]]></description>
-                    <description_en><![CDATA[Rising rate hike expectations]]></description_en>
                     <mitigation><![CDATA[设置止损位跌破$145清仓]]></mitigation>
-                    <mitigation_en><![CDATA[Stop loss if below $145]]></mitigation_en>
                     <trigger><![CDATA[10Y国债收益率突破4.8%]]></trigger>
-                    <trigger_en><![CDATA[10Y yield breaks 4.8%]]></trigger_en>
                 </risk>
             </risks>
         </reasoning>
         <risk_management>
             <stop_loss><![CDATA[跌破$145清仓]]></stop_loss>
-            <stop_loss_en><![CDATA[Liquidate below $145]]></stop_loss_en>
             <take_profit><![CDATA[$165分批止盈]]></take_profit>
-            <take_profit_en><![CDATA[Scale out at $165]]></take_profit_en>
             <max_drawdown_tolerance>8%</max_drawdown_tolerance>
             <review_triggers>
                 <trigger><![CDATA[财报发布后重新评估]]></trigger>
                 <trigger><![CDATA[VIX突破25]]></trigger>
             </review_triggers>
-            <review_triggers_en>
-                <trigger><![CDATA[Re-evaluate after earnings]]></trigger>
-                <trigger><![CDATA[VIX breaks 25]]></trigger>
-            </review_triggers_en>
         </risk_management>
         <action>57</action>
         <operation_type>LIMIT_ENTRY</operation_type>
@@ -442,9 +441,10 @@ if __name__ == "__main__":
             <zealot_reservation><![CDATA[仍认为技术面信号更强，action应在60以上]]></zealot_reservation>
             <reaper_final_action>48</reaper_final_action>
             <reaper_reservation><![CDATA[基本面隐患未消，建议更谨慎]]></reaper_reservation>
+            <fulcrum_final_action>55</fulcrum_final_action>
+            <fulcrum_reservation><![CDATA[无]]></fulcrum_reservation>
         </dissent>
         <statement><![CDATA[技术超卖提供入场窗口，但基本面放缓需限仓试探，$145为硬止损。]]></statement>
-        <statement_en><![CDATA[Technical oversold offers entry, but slowing fundamentals warrant pilot sizing. Hard stop at $145.]]></statement_en>
     </final_report>
     """
     

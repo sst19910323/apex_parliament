@@ -50,6 +50,9 @@ CHECK_INTERVAL = 60
 BATCH_SIZE = 5
 TASK_STAGGER_SECONDS = 2  # LLM任务启动间隔
 
+# 宏观基准ETF（替代原 SPX/NDX/INDU 指数，有盘前盘后成交量）
+BENCHMARK_SYMBOLS = ["SPY", "QQQ", "DIA"]
+
 def get_trading_calendar(exchange: str = 'NYSE') -> mcal.MarketCalendar:
     try:
         return mcal.get_calendar(exchange)
@@ -113,10 +116,35 @@ class ContextAssembler:
         except:
             return str(path).replace("\\", "/")
 
-    def assemble_general(self) -> Tuple[Dict, Dict]:
+    def _build_benchmark_data(self, exclude_symbol: Optional[str] = None) -> Tuple[str, Dict[str, str]]:
+        """
+        拼接 SPY/QQQ/DIA 的技术分析文本为单个 benchmark_data 字符串。
+        若 exclude_symbol 命中 BENCHMARK_SYMBOLS（例如分析SPY时），则跳过该基准，避免数据重复。
+        返回: (拼接文本, 各基准对应文件路径dict)
+        """
+        max_age = self._get_max_age('technical_analysis')
+        ta_dir = self.full_cfg.get('technical_analysis', {}).get('output_dir')
+
+        sections: List[str] = []
+        used_paths: Dict[str, str] = {}
+        exclude_upper = (exclude_symbol or "").upper()
+
+        for sym in BENCHMARK_SYMBOLS:
+            if sym == exclude_upper:
+                continue
+            p = self._find_latest(f"{ta_dir}/{sym}", f"{sym}_technical_*.json", max_age)
+            if not p:
+                continue
+            content = self._read_file(p)
+            sections.append(f"#### {sym} 技术分析\n{content}")
+            used_paths[sym] = self._get_path_str(p)
+
+        return "\n\n".join(sections), used_paths
+
+    def assemble_general(self, exclude_symbol: Optional[str] = None) -> Tuple[Dict, Dict]:
         raw = {}
-        paths = { "macro": {}, "indices": {}, "symbol": {} }
-        
+        paths = { "macro": {}, "benchmarks": {}, "symbol": {} }
+
         max_age = self._get_max_age('news')
         news_dir = self.full_cfg.get('news', {}).get('cache_dir', 'data/news')
         p = self._find_latest(f"{news_dir}/GENERAL", "GENERAL_news_*.json", max_age)
@@ -138,18 +166,16 @@ class ContextAssembler:
             raw["fear_greed_data"] = self._read_file(p)
             paths["macro"]["fear_greed"] = self._get_path_str(p)
 
-        max_age = self._get_max_age('technical_analysis')
-        ta_dir = self.full_cfg.get('technical_analysis', {}).get('output_dir')
-        for idx in ["SPX", "NDX", "INDU"]:
-            p = self._find_latest(f"{ta_dir}/{idx}", f"{idx}_technical_*.json", max_age)
-            if p:
-                raw[f"{idx.lower()}_data"] = self._read_file(p)
-                paths["indices"][idx] = self._get_path_str(p)
+        # 基准ETF（SPY/QQQ/DIA）合并为 benchmark_data 字段，命中自己时跳过
+        bench_text, bench_paths = self._build_benchmark_data(exclude_symbol=exclude_symbol)
+        raw["benchmark_data"] = bench_text
+        paths["benchmarks"] = bench_paths
 
         return raw, paths
 
     def assemble_stock(self, symbol: str) -> Tuple[Dict, Dict]:
-        raw, paths = self.assemble_general()
+        # 传入当前 symbol，若它是 SPY/QQQ/DIA 之一则在基准里排除，避免重复数据
+        raw, paths = self.assemble_general(exclude_symbol=symbol)
         
         clean_sym = symbol.upper().replace(" ", ".")
         raw["symbol"] = clean_sym
@@ -189,16 +215,16 @@ class ContextAssembler:
         return raw, paths
 
     def is_general_data_fresh(self, max_age_seconds: float) -> bool:
-        """检查GENERAL依赖的核心数据(SPX/NDX技术分析)是否在阈值内"""
+        """检查GENERAL依赖的基准ETF(SPY/QQQ/DIA)技术分析数据是否在阈值内"""
         ta_dir = self.full_cfg.get('technical_analysis', {}).get('output_dir')
         if not ta_dir:
             return False
-        
-        for idx in ["SPX", "NDX", "INDU"]:
-            dir_path = self.root / ta_dir / idx
+
+        for sym in BENCHMARK_SYMBOLS:
+            dir_path = self.root / ta_dir / sym
             if not dir_path.exists():
                 return False
-            files = list(dir_path.glob(f"{idx}_technical_*.json"))
+            files = list(dir_path.glob(f"{sym}_technical_*.json"))
             if not files:
                 return False
             latest = max(files, key=lambda f: f.stat().st_mtime)
@@ -222,23 +248,23 @@ def chunk_list(data: list, size: int):
 def fetch_and_calc_batch(
     symbols: List[str],
     symbols_config: Dict,
-    include_indices: bool = False
+    include_benchmarks: bool = False
 ):
     """
     为一组标的串行下载IBKR数据并计算技术指标。
     每个batch独立连接/断开。
-    
+
     Args:
         symbols: 需要下载的标的列表 (不含GENERAL)
         symbols_config: symbols.yaml配置
-        include_indices: 是否同时下载指数(SPX/NDX)，用于刷新GENERAL数据
+        include_benchmarks: 是否同时下载基准ETF(SPY/QQQ/DIA)，用于刷新GENERAL数据
     """
-    # 构建下载列表: 指数排最前面，确保GENERAL依赖数据先就绪
+    # 构建下载列表: 基准ETF排最前面，确保GENERAL依赖数据先就绪
     download_list = []
-    if include_indices:
-        for idx in ["SPX", "NDX", "INDU"]:
-            if idx not in symbols:
-                download_list.append(idx)
+    if include_benchmarks:
+        for sym in BENCHMARK_SYMBOLS:
+            if sym not in symbols:
+                download_list.append(sym)
     download_list.extend(symbols)
     
     if not download_list:
@@ -354,10 +380,10 @@ def run_debate_sync(engine, assembler, symbol: str, ctx_type: str, data_config: 
     # 3. 提取数据时间戳
     data_ts = ""
     if ctx_type == 'general':
-        indices = paths.get("indices", {})
+        benchmarks = paths.get("benchmarks", {})
         ts_list = []
-        for idx in ["SPX", "NDX"]:
-            ts = _extract_ts_from_path(indices.get(idx))
+        for sym in BENCHMARK_SYMBOLS:
+            ts = _extract_ts_from_path(benchmarks.get(sym))
             if ts: ts_list.append(ts)
         if ts_list: data_ts = max(ts_list)
     else:
@@ -419,21 +445,21 @@ async def run_analysis_phase(symbols_map: Dict, data_config: Dict, symbols_confi
         # 提取本组需要IBKR下载的标的 (排除GENERAL，GENERAL的指数数据单独处理)
         ibkr_symbols = [sym for sym, _ in batch if sym != "GENERAL"]
         
-        # --- 步骤A: 每个batch都先检查GENERAL依赖数据(指数)是否需要刷新 ---
-        need_refresh_indices = not assembler.is_general_data_fresh(general_max_age)
-        if need_refresh_indices:
-            logging.info(f"🔄 [General Guard] Index data stale (>{general_max_age:.0f}s), will refresh SPX/NDX.")
+        # --- 步骤A: 每个batch都先检查GENERAL依赖数据(基准ETF)是否需要刷新 ---
+        need_refresh_benchmarks = not assembler.is_general_data_fresh(general_max_age)
+        if need_refresh_benchmarks:
+            logging.info(f"🔄 [General Guard] Benchmark data stale (>{general_max_age:.0f}s), will refresh {BENCHMARK_SYMBOLS}.")
         else:
-            logging.info(f"✅ [General Guard] Index data fresh, skipping index download.")
-        
+            logging.info(f"✅ [General Guard] Benchmark data fresh, skipping benchmark download.")
+
         # --- 步骤B: JIT数据下载 (串行，每batch独立连接) ---
-        # 指数数据(SPX/NDX)排在最前面下载，然后才是本组标的
+        # 基准ETF (SPY/QQQ/DIA) 排在最前面下载，然后才是本组标的
         await loop.run_in_executor(
             None,
             fetch_and_calc_batch,
             ibkr_symbols,
             symbols_config,
-            need_refresh_indices  # include_indices
+            need_refresh_benchmarks  # include_benchmarks
         )
         
         # --- 步骤C: LLM辩论，错开启动 ---
@@ -483,7 +509,7 @@ def load_helpers():
     s_map = {
         "stocks": [s.upper() for s in t.get('stocks', [])],
         "etfs": [s.upper() for s in t.get('etfs', [])],
-        "indices": [s.upper() for s in t.get('indices', [])]
+        "benchmarks": [s.upper() for s in t.get('benchmarks', [])],
     }
     return d_cfg, s_cfg, s_map
 

@@ -29,12 +29,19 @@ analysis_targets:
     - SPY      # SPDR S&P 500 ETF Trust
     - QQQ      # Invesco QQQ Trust (Nasdaq-100)
     - GLD      # SPDR Gold Shares
-  
-  # Indices - only require market data (as market reference indicators)
-  indices:
-    - SPX      # S&P 500 Index
-    - NDX      # Nasdaq-100 Index
-    - INDU     # Dow Jones Industrial Average
+
+  # Benchmarks - 仅作为宏观背景基准，不单独出分析报告
+  # (盘前盘后有真实成交量，替代了原 SPX/NDX/INDU 指数)
+  benchmarks:
+    - SPY      # S&P 500 代理 (与 etfs 复用，单独分析 + 基准双重身份)
+    - QQQ      # Nasdaq-100 代理 (同上)
+    - DIA      # Dow Jones 代理 (仅作基准，不单独分析)
+
+  # Indices - 已废弃，改用 ETF (SPY/QQQ/DIA)
+  # indices:
+  #   - SPX      # S&P 500 Index
+  #   - NDX      # Nasdaq-100 Index
+  #   - INDU     # Dow Jones Industrial Average
 
 
 # =============================================================================
@@ -47,13 +54,16 @@ data_requirements:
     - market_data
     - news
     - fundamentals
-  
+
   etfs:
     - market_data
     - news
-  
-  indices:
+
+  benchmarks:
     - market_data
+
+  # indices:  # 已废弃，改用 benchmarks
+  #   - market_data
 
 
 # =============================================================================
@@ -223,25 +233,33 @@ symbol_contracts:
     currency: USD
     primary_exchange: ARCA
     description: "SPDR Gold Shares"
-  
-  # --------------------------------- Indices --------------------------------- #
-  SPX:
-    symbol: SPX
-    sec_type: IND
-    exchange: CBOE
-    currency: USD
-    description: "S&P 500 Index"
-  
-  NDX:
-    symbol: NDX
-    sec_type: IND
-    exchange: NASDAQ
-    currency: USD
-    description: "Nasdaq-100 Index"
 
-  INDU:
-    symbol: INDU
-    sec_type: IND
-    exchange: CME
+  DIA:
+    symbol: DIA
+    sec_type: STK
+    exchange: SMART
     currency: USD
-    description: "Dow Jones Industrial Average"
+    primary_exchange: ARCA
+    description: "SPDR Dow Jones Industrial Average ETF (宏观基准用，不单独分析)"
+
+  # --------------------------------- Indices (已废弃，保留定义备用) --------------------------------- #
+  # SPX:
+  #   symbol: SPX
+  #   sec_type: IND
+  #   exchange: CBOE
+  #   currency: USD
+  #   description: "S&P 500 Index"
+  #
+  # NDX:
+  #   symbol: NDX
+  #   sec_type: IND
+  #   exchange: NASDAQ
+  #   currency: USD
+  #   description: "Nasdaq-100 Index"
+  #
+  # INDU:
+  #   symbol: INDU
+  #   sec_type: IND
+  #   exchange: CME
+  #   currency: USD
+  #   description: "Dow Jones Industrial Average"
