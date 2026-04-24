@@ -352,6 +352,17 @@ apex_parliament/
 
 ---
 
+<details>
+<summary>🕰️ <b>Development milestones (click)</b></summary>
+
+Key milestones along the way — from an overconfident single agent to the current four-role architecture.
+
+![timeline](images/timeline.png)
+
+</details>
+
+---
+
 ## ⚠️ Disclaimer
 
 This project is for research and personal use only. It does not constitute investment advice.
@@ -709,6 +720,17 @@ apex_parliament/
 ├── start.sh / stop.sh               # 服务启停脚本
 └── requirements.txt                 # Python 依赖
 ```
+
+---
+
+<details>
+<summary>🕰️ <b>开发重要时间点 (点击展开)</b></summary>
+
+从最初一个过度自信的单 Agent，一路演化到今天的四角色架构，这是我的开发历程。
+
+![timeline](images/timeline.png)
+
+</details>
 
 ---
 
