@@ -14,21 +14,27 @@ analysis_targets:
     - AMD      # Advanced Micro Devices, Inc. (Semiconductors)
     - AVGO     # Broadcom Inc. (Semiconductors)
     - MU       # Micron Technology (HBM/Memory)
+    - INTC     # Intel Corporation (老牌龙头/CHIPS法案/转型故事)
     - TSLA     # Tesla Inc.
     - META     # Meta Platforms Inc.
     - ADBE     # Adobe Inc. (SaaS/AI App)
     - JPM      # JPMorgan Chase & Co. (Financials)
+    - WMT      # Walmart Inc. (Consumer Staples)
     - UNH      # UnitedHealth Group Inc. (Healthcare)
+    - XOM      # Exxon Mobil Corporation (Energy)
     - BRK.B    # Berkshire Hathaway Inc. Class B
     - SNPS     # Synopsys Inc. (EDA Software)
     - CEG      # Constellation Energy Corp (Utilities/Nuclear)
     - VST      # Vistra Corp (Utilities/Nuclear)
+    - PLTR     # Palantir Technologies (AI/Defense/Government Software)
+    - MP       # MP Materials (美国稀土 pure-play / 战略矿产)
   
   # ETFs - require market data + news
   etfs:
     - SPY      # SPDR S&P 500 ETF Trust
     - QQQ      # Invesco QQQ Trust (Nasdaq-100)
     - GLD      # SPDR Gold Shares
+    - SMH      # VanEck Semiconductor ETF (半导体板块温度计)
 
   # Benchmarks - 仅作为宏观背景基准，不单独出分析报告
   # (盘前盘后有真实成交量，替代了原 SPX/NDX/INDU 指数)
@@ -136,7 +142,15 @@ symbol_contracts:
     currency: USD
     primary_exchange: NASDAQ
     description: "Micron Technology"
-  
+
+  INTC:
+    symbol: INTC
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Intel Corporation (老牌龙头/CHIPS法案/转型故事)"
+
   TSLA:
     symbol: TSLA
     sec_type: STK
@@ -168,7 +182,15 @@ symbol_contracts:
     currency: USD
     primary_exchange: NYSE
     description: "JPMorgan Chase & Co."
-  
+
+  WMT:
+    symbol: WMT
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NYSE
+    description: "Walmart Inc. (Consumer Staples)"
+
   UNH:
     symbol: UNH
     sec_type: STK
@@ -176,7 +198,15 @@ symbol_contracts:
     currency: USD
     primary_exchange: NYSE
     description: "UnitedHealth Group Inc."
-  
+
+  XOM:
+    symbol: XOM
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NYSE
+    description: "Exxon Mobil Corporation (Energy)"
+
   BRK.B:
     symbol: BRK.B
     sec_type: STK
@@ -209,6 +239,22 @@ symbol_contracts:
     primary_exchange: NYSE
     description: "Vistra Corp"
 
+  PLTR:
+    symbol: PLTR
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "Palantir Technologies (AI/Defense/Government Software)"
+
+  MP:
+    symbol: MP
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NYSE
+    description: "MP Materials (美国稀土 pure-play / 战略矿产)"
+
   # ---------------------------------- ETFs ---------------------------------- #
   SPY:
     symbol: SPY
@@ -233,6 +279,14 @@ symbol_contracts:
     currency: USD
     primary_exchange: ARCA
     description: "SPDR Gold Shares"
+
+  SMH:
+    symbol: SMH
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "VanEck Semiconductor ETF (半导体板块温度计)"
 
   DIA:
     symbol: DIA

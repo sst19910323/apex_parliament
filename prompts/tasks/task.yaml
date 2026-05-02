@@ -6,9 +6,9 @@
 init_task: |
   ## 初始化分析
   标的：{symbol}
-  
+
   这是第一轮，请独立分析并给出你的初始方案。
-  
+
   ## 原始数据
   {raw_data}
 
@@ -16,12 +16,12 @@ init_task: |
 debate_task: |
   ## 第 {turn} 轮辩论
   标的：{symbol}
-  
+
   请基于原始数据和辩论记录，发表你这一轮的观点。
-  
+
   ## 原始数据
   {raw_data}
-  
+
   ## 辩论记录
   {debate_history}
 
@@ -65,43 +65,71 @@ signoff_task: |
 
 # -----------------------------------------------------------------
 # 原始数据模板
+# 数据中所有 leaf key 已加 "{symbol}_" 前缀（例如 QQQ_daily_technicals_ma_20_daily_val），
+# 跨标的引用时禁止抹掉前缀。
 # -----------------------------------------------------------------
 
-# Stock
+# Stock（个股）
 raw_data_stock: |
-  ### 宏观市场背景
+  ### 参考背景（用于风险与情景判断，非分析对象）
   - 宏观与政治新闻: {general_news_data}
-  - 经济基本面: {macro_data}
-  - 市场情绪: {fear_greed_data}
-  - 市场基准ETF技术分析（SPY/QQQ/DIA，含盘前盘后成交量）: {benchmark_data}
+  - 经济基本面（CPI/利率/GDP 等）: {macro_data}
+  - 市场情绪指数（Fear & Greed / VIX）: {fear_greed_data}
+  - 三大基准 ETF 技术指标（SPY/QQQ/DIA）: {benchmark_data}
 
-  ### 标的专属数据
-  - 标的: {symbol}
+  ### 分析对象 = {symbol}
+  以下数据均属于 {symbol}（key 已带前缀）：
   - 公司概况: {profile_data}
-  - 技术面: {tech_data}
+  - 技术指标: {tech_data}
   - 基本面: {fundamentals_data}
-  - 新闻: {news_data}
+  - 公司新闻: {news_data}
 
-# ETF
+  ### 大盘是过滤器，不是装饰
+  个股不独立于大盘。结合 {symbol} 行业属性选合适的基准 ETF 做相对强弱判断，
+  把当前 regime（risk-on / risk-off / 板块轮动）纳入信号有效性评估，
+  风险管理叠加市场层面触发条件。
+
+# ETF（SPY/QQQ/GLD 等）
 raw_data_etf: |
-  ### 宏观市场背景
+  ### 参考背景（用于风险与情景判断，非分析对象）
   - 宏观与政治新闻: {general_news_data}
   - 经济基本面: {macro_data}
-  - 市场情绪: {fear_greed_data}
-  - 市场基准ETF技术分析（含盘前盘后成交量，不含本标的自身）: {benchmark_data}
+  - 市场情绪指数: {fear_greed_data}
+  - 其他基准 ETF 技术指标（已剔除本标的自身）: {benchmark_data}
 
-  ### 标的专属数据
-  - 标的: {symbol}
-  - ETF概况: {profile_data}
-  - 技术面: {tech_data}
-  - 新闻: {news_data}
+  ### 分析对象 = {symbol}
+  以下数据均属于 {symbol}（key 已带前缀）：
+  - ETF 概况: {profile_data}
+  - 技术指标: {tech_data}
+  - 相关新闻: {news_data}
+
+  ### 横向对比义务
+  ETF 自身就是宽基/行业指数，但仍需用其他 ETF 与宏观做横向锚定，
+  显式判断 {symbol} 相对其他基准的强弱。
 
 # General（宏观市场分析）
 raw_data_general: |
-  ### 宏观市场背景
+  ### 分析对象：美国大盘整体
+
+  视角铁律：以 SPY、QQQ、DIA 三大基准 ETF **并列横向对比** + 宏观 + 经济 + 情绪
+  综合判断市场整体走势。**严禁把任何单一 ETF 当作分析对象**——三者代表不同板块
+  （宽基 / 科技重仓 / 工业金融），它们之间的分歧本身就是关键信号。
+
   - 宏观与政治新闻: {general_news_data}
   - 经济基本面: {macro_data}
-  - 市场情绪: {fear_greed_data}
-  - 市场基准ETF技术分析（SPY/QQQ/DIA，含盘前盘后成交量）: {benchmark_data}
+  - 市场情绪指数: {fear_greed_data}
+  - 三大基准 ETF 技术指标（并列分析对象，三者各司其职）: {benchmark_data}
 
-  注：这是宏观市场分析，operation_target填写QQQ预期价格（美元，保留2位小数）。
+  ### 三镜头使命
+  - **SPY**（标普500）：宽基，判断 risk-on/risk-off 的首要镜头
+  - **QQQ**（纳指100）：科技/AI 重仓（~50% Mag7 + 半导体），AI 叙事主战场
+  - **DIA**（道指30）：工业/金融/必选消费为主，科技独立行情时的关键对照镜
+
+  三个镜头各自给出独立趋势判断；reasoning 中至少各引用一次 SPY/QQQ/DIA 各自的指标。
+  当三镜头方向分歧时（如 QQQ 偏多 / DIA 偏空），必须在 statement 中点明分化含义
+  （sector rotation / risk-off in cyclicals 等），不得糊弄。
+
+  ### operation_target 输出规则（GENERAL 专用）
+  必须输出三个 ETF 的预期价位，格式严格为：
+  ``SPY=612.50; QQQ=667.50; DIA=445.20``
+  （分号分隔，等号连接，价位保留 2 位小数）

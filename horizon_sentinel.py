@@ -47,8 +47,8 @@ except ImportError as e:
 EASTERN = ZoneInfo("America/New_York")
 RUN_TIMES = [dtime(9, 0)]
 CHECK_INTERVAL = 60
-BATCH_SIZE = 5
-TASK_STAGGER_SECONDS = 2  # LLM任务启动间隔
+BATCH_SIZE = 8                # 19 stocks + 3 ETFs + GENERAL = 23 targets -> 3 batches (8+8+7)
+TASK_STAGGER_SECONDS = 2      # Stagger LLM task launches within a batch
 
 # 宏观基准ETF（替代原 SPX/NDX/INDU 指数，有盘前盘后成交量）
 BENCHMARK_SYMBOLS = ["SPY", "QQQ", "DIA"]
@@ -325,16 +325,20 @@ def fetch_and_calc_batch(
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _extract_ts_from_path(path_str: str) -> str:
-    """提取文件名中的 ISO 8601 时间戳字符串 (YYYYMMDDTHHMMSSZ)"""
+    """Extract ISO 8601 timestamp (YYYYMMDDTHHMMSSZ) from a filename.
+
+    Only the current ISO format is recognized. Any other shape returns "" so
+    the dedup check treats it as "unknown / not comparable" and re-runs.
+    Legacy pre-migration filenames have been purged from the data dirs.
+    """
     if not path_str: return ""
     try:
         stem = Path(path_str).stem
-        parts = stem.split('_')
-        candidate = parts[-1]
-        if ("T" in candidate and candidate.endswith("Z")) or candidate.isdigit():
-            return candidate
+        last = stem.split('_')[-1]
+        if "T" in last and last.endswith("Z"):
+            return last
         return ""
-    except:
+    except Exception:
         return ""
 
 def _check_analysis_exists(symbol: str, data_ts: str, data_config: Dict) -> bool:

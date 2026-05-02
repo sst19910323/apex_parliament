@@ -115,11 +115,16 @@ Each decision cycle is fed by the following data sources:
 
 **V15 session-aware snapshot.** Each technical snapshot carries `instrument_metadata` and `session_context`, both auto-resolved from the latest 1-minute bar timestamp via `pandas_market_calendars` (handles DST and early-close days). The JSON is reorganized by data completeness — `current_snapshot / daily_technicals / hourly_technicals / weekly_snapshot / positioning / cross_timeframe_summary / price_structure` — and fields that would mislead the AI during pre/post-market (e.g. `volume_ratio_vs_20d_daily_avg`) are deliberately nulled out. When the primary target is SPY or QQQ itself, it is automatically deduplicated from the macro backdrop.
 
+**Symbol-prefixed fields (anti-laziness).** Live runs surfaced a recurring failure mode: with multiple instruments in scope (e.g. SPY/QQQ/DIA + a target stock), debaters would latch onto one favorite indicator and cross-reference numbers without keeping track of which symbol they belonged to. Two fixes:
+
+- `analysis/symbol_prefix.py` flattens every nested data block so every leaf key starts with the owning symbol — e.g. `QQQ_daily_technicals_ma_20_daily_val`, `SPY_current_snapshot_last_price`. Ownership is now syntactically inseparable from the value.
+- The debate constitution (`shared_rules.yaml`) and `task.yaml` add explicit anti-tunnel-vision rules: stock/ETF analysis must evaluate signals **against the prevailing macro regime**, and `GENERAL` runs must analyze SPY / QQQ / DIA as three independent lenses — divergence between them (e.g. tech going solo while industrials lag) is itself a required signal, not noise to be smoothed over. The `operation_target` for `GENERAL` is now a three-price string (`SPY=X; QQQ=Y; DIA=Z`) so the AI can't collapse the three lenses into one number.
+
 ---
 
 ## 🗂️ Example Data
 
-The `data/examples/` directory contains selected core data from a GENERAL (market-wide) analysis cycle on March 23, 2026, showing what the system's main inputs and outputs look like. These snapshots predate the V15 session-aware schema and the ETF-benchmark switch, so you'll see `SPX` and the older field names (e.g. `last_close`, `*_en` bilingual fields) — current runs use SPY/QQQ/DIA and the renamed fields (`last_price`, etc.).
+The `data/examples/` directory contains selected core data from a GENERAL (market-wide) analysis cycle on March 23, 2026, showing what the system's main inputs and outputs look like. **These on-disk snapshots predate three later changes**: the V15 session-aware schema, the SPX/NDX/INDU → SPY/QQQ/DIA benchmark switch, and the symbol-prefix flattening. So the files still show `SPX`, the older field names (`last_close`, `*_en` bilingual fields), and unprefixed nested keys. The JSON snippets below are rewritten to reflect the **current** schema.
 
 ```
 data/examples/
@@ -183,24 +188,27 @@ data/examples/
 </details>
 
 <details>
-<summary><b>Technical Snapshot — Selected Fields (click to expand)</b></summary>
+<summary><b>Technical Snapshot — Selected Fields, Current Schema (click to expand)</b></summary>
+
+Every leaf key carries its owning symbol up front, so cross-symbol references can never lose track of ownership:
 
 ```json
 {
-  "symbol": "SPX",
-  "minute_level_features": {
-    "last_close": 6608.29,
-    "rsi_14_5min": 77.87,
-    "atr_14_5min": 15.12,
-    "liquidity_score_vol_per_bar": 0.0
-  },
-  "hourly_features": {
-    "ma_20_hourly_val": 6590.25,
-    "ma_50_hourly_val": 6652.50,
-    "rsi_14_hourly": 50.59,
-    "macd_hist_hourly": 0.556,
-    "bb_pct_b_hourly": 0.59
-  }
+  "instrument_metadata": { "symbol": "QQQ", "asset_type": "ETF" },
+  "session_context":     { "session": "REGULAR", "is_early_close": false },
+
+  "QQQ_current_snapshot_last_price": 612.50,
+  "QQQ_current_snapshot_last_volume": 18420300,
+
+  "QQQ_minute_level_rsi_14_5min": 77.87,
+  "QQQ_minute_level_atr_14_5min": 15.12,
+  "QQQ_minute_level_liquidity_score_vol_per_bar": 0.0,
+
+  "QQQ_hourly_technicals_ma_20_hourly_val": 610.25,
+  "QQQ_hourly_technicals_ma_50_hourly_val": 615.50,
+  "QQQ_hourly_technicals_rsi_14_hourly": 50.59,
+  "QQQ_hourly_technicals_macd_hist_hourly": 0.556,
+  "QQQ_hourly_technicals_bb_pct_b_hourly": 0.59
 }
 ```
 
@@ -339,7 +347,8 @@ apex_parliament/
 │
 ├── analysis/                        # Quantitative Analysis
 │   ├── technical_snapshot_builder.py # Multi-timeframe technical indicator snapshots
-│   └── trend_analyzer.py            # Simplified trend line model
+│   ├── trend_analyzer.py            # Simplified trend line model
+│   └── symbol_prefix.py             # Flatten nested data with {symbol}_ prefix on every leaf key
 │
 ├── apex_quant_entry.py              # FastAPI backend entry point
 ├── data_scheduler.py                # Low-frequency data scheduler (news, fundamentals — API rate limited)
@@ -486,11 +495,16 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 
 **V15 session-aware 量化快照。** 每份技术快照都带有 `instrument_metadata` 和 `session_context`，由最新一根 1 分钟 bar 的时间戳通过 `pandas_market_calendars` 自动判定（正确处理夏令时和早收盘日）。JSON 按"数据完整性"重组：`current_snapshot / daily_technicals / hourly_technicals / weekly_snapshot / positioning / cross_timeframe_summary / price_structure`；盘前盘后会误导 AI 的字段（如 `volume_ratio_vs_20d_daily_avg`）会被主动置 null。当分析目标本身就是 SPY 或 QQQ 时，它会从宏观背景中自动去重。
 
+**带标的前缀的字段（防 AI 偷懒）。** 实跑中发现一个反复出现的故障模式：多标的同时在场时（例如 SPY/QQQ/DIA + 目标个股），辩论者会过度专注某一套自己最熟的量化指标，并在跨标的引用时丢失数字归属。两个补丁：
+
+- `analysis/symbol_prefix.py` 把所有嵌套数据扁平化，每一个 leaf key 都以所属标的开头——比如 `QQQ_daily_technicals_ma_20_daily_val`、`SPY_current_snapshot_last_price`。归属关系直接焊在 key 上，AI 想抹也抹不掉。
+- 辩论宪法（`shared_rules.yaml`）和 `task.yaml` 增加了显式的防偏规则：分析个股/ETF 时必须**结合大盘 regime** 评估信号有效性；`GENERAL` 场景必须把 SPY / QQQ / DIA 当作三个独立镜头分别分析——三者的方向分歧本身就是必须解读的信号（比如科技独走、工业拖后），不允许被糊弄掉。`GENERAL` 的 `operation_target` 现在输出三价位字符串（`SPY=X; QQQ=Y; DIA=Z`），AI 没法把三个镜头压成一个数字。
+
 ---
 
 ## 🗂️ 示例数据
 
-`data/examples/` 目录包含 2026 年 3 月 23 日 GENERAL（大盘）分析周期的部分核心数据，展示系统主要的输入输出长什么样。这些快照早于 V15 session-aware schema 以及 ETF 基准切换，所以你会看到 `SPX` 和旧字段名（如 `last_close`、`*_en` 双语字段）——当前版本已改用 SPY/QQQ/DIA，字段也重命名（`last_price` 等）。
+`data/examples/` 目录包含 2026 年 3 月 23 日 GENERAL（大盘）分析周期的部分核心数据，展示系统主要的输入输出长什么样。**这些磁盘上的快照早于后来的三次改动**：V15 session-aware schema、SPX/NDX/INDU → SPY/QQQ/DIA 基准切换、以及标的前缀扁平化。所以文件里仍是 `SPX`、旧字段名（`last_close`、`*_en` 双语字段）、未加前缀的嵌套 key。下面折叠的 JSON 片段已经按**当前** schema 重写。
 
 ```
 data/examples/
@@ -554,24 +568,27 @@ data/examples/
 </details>
 
 <details>
-<summary><b>技术分析快照 — 部分字段 (点击展开)</b></summary>
+<summary><b>技术分析快照 — 部分字段（当前 schema，点击展开）</b></summary>
+
+每一个 leaf key 前都直接焊上所属标的，跨标的引用时不可能丢归属：
 
 ```json
 {
-  "symbol": "SPX",
-  "minute_level_features": {
-    "last_close": 6608.29,
-    "rsi_14_5min": 77.87,
-    "atr_14_5min": 15.12,
-    "liquidity_score_vol_per_bar": 0.0
-  },
-  "hourly_features": {
-    "ma_20_hourly_val": 6590.25,
-    "ma_50_hourly_val": 6652.50,
-    "rsi_14_hourly": 50.59,
-    "macd_hist_hourly": 0.556,
-    "bb_pct_b_hourly": 0.59
-  }
+  "instrument_metadata": { "symbol": "QQQ", "asset_type": "ETF" },
+  "session_context":     { "session": "REGULAR", "is_early_close": false },
+
+  "QQQ_current_snapshot_last_price": 612.50,
+  "QQQ_current_snapshot_last_volume": 18420300,
+
+  "QQQ_minute_level_rsi_14_5min": 77.87,
+  "QQQ_minute_level_atr_14_5min": 15.12,
+  "QQQ_minute_level_liquidity_score_vol_per_bar": 0.0,
+
+  "QQQ_hourly_technicals_ma_20_hourly_val": 610.25,
+  "QQQ_hourly_technicals_ma_50_hourly_val": 615.50,
+  "QQQ_hourly_technicals_rsi_14_hourly": 50.59,
+  "QQQ_hourly_technicals_macd_hist_hourly": 0.556,
+  "QQQ_hourly_technicals_bb_pct_b_hourly": 0.59
 }
 ```
 
@@ -710,7 +727,8 @@ apex_parliament/
 │
 ├── analysis/                        # 量化分析
 │   ├── technical_snapshot_builder.py # 多时间尺度技术指标快照
-│   └── trend_analyzer.py            # 独立简化趋势线模型
+│   ├── trend_analyzer.py            # 独立简化趋势线模型
+│   └── symbol_prefix.py             # 把嵌套数据扁平化，每个 leaf key 加 {symbol}_ 前缀
 │
 ├── apex_quant_entry.py              # FastAPI 后端入口
 ├── data_scheduler.py                # 低频数据采集调度器（新闻、基本面，受 API 限额约束）

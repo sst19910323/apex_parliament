@@ -151,20 +151,25 @@ class AlphaFundamentalFetcher:
             return None
 
     def _save_to_cache(self, fundamentals: CompanyFundamentals, original_symbol: str):
+        from analysis.symbol_prefix import flatten_with_symbol_prefix
+
         symbol = original_symbol.upper()
         symbol_dir = self.cache_dir / symbol
         symbol_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # 🔥 核心修正: 使用 ISO 8601 UTC 文件名 (YYYYMMDDTHHMMSSZ)
         now_utc = datetime.now(timezone.utc)
         timestamp_str = now_utc.strftime("%Y%m%dT%H%M%SZ")
-        
+
         filename = f"{symbol}_fundamentals_{timestamp_str}.json"
         file_path = symbol_dir / filename
-        
+
+        # 每个 leaf key 加 {symbol}_ 前缀，避免 LLM 跨标的串数据
+        payload = flatten_with_symbol_prefix(symbol, fundamentals.to_dict())
+
         try:
             with open(file_path, 'w', encoding='utf-8') as f:
-                json.dump(fundamentals.to_dict(), f, ensure_ascii=False, indent=4)
+                json.dump(payload, f, ensure_ascii=False, indent=4)
             print(f"  [{self.name}] 💾 Saved: {filename}")
         except Exception as e:
             print(f"  [{self.name}] ✗ Save failed: {e}")

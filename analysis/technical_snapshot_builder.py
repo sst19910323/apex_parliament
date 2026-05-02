@@ -838,7 +838,12 @@ def build_json_output(
       instrument_metadata, session_context,
       current_snapshot, daily_technicals, hourly_technicals,
       weekly_snapshot, positioning, cross_timeframe_summary, price_structure
+
+    最终输出会用 ``flatten_with_symbol_prefix`` 扁平化，每个 leaf key 前缀
+    为 ``{symbol}_<path>``，避免 LLM 跨标的引用数字时丢失归属。
     """
+    from analysis.symbol_prefix import flatten_with_symbol_prefix
+
     output_json = {
         "symbol": symbol,
         "market_data_timestamp_utc": timestamp_iso,
@@ -860,7 +865,7 @@ def build_json_output(
         else:
             output_json.setdefault(group, {})[key] = all_features[key]
 
-    return output_json
+    return flatten_with_symbol_prefix(symbol, output_json)
 
 
 def save_json(json_data: Dict[str, Any], output_path: Path) -> bool:

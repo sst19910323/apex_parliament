@@ -89,6 +89,7 @@ final_report_output: |
       * 市价单：填当前价作为锚点
       * 限价单：填基于raw_data与三方意见综合判断后的合理限价位
       * Hold：填"N/A"或关键支撑价
+      * **GENERAL（大盘整体）**：填三价位字符串 `SPY=X; QQQ=Y; DIA=Z`（分号分隔，等号连接，2位小数）
   - operation_volume: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"
 
   ### 分歧记录

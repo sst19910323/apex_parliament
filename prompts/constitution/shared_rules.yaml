@@ -41,7 +41,7 @@ shared_rules: |
   |------|------|
   | action | 0-100整数。0=激进卖出，50=持有，100=激进买入 |
   | operation_type | BUY类: MARKET_ENTRY / LIMIT_ENTRY · HOLD类: HOLD_NEUTRAL · SELL类: TRIM_POSITION / LIQUIDATE_NOW |
-  | operation_target | 交易操作必填具体价格锚点（数字）：市价单填当前价作为锚点，限价单填限价位；Hold填"N/A"或关键支撑价 |
+  | operation_target | 交易操作必填具体价格锚点（数字）：市价单填当前价，限价单填限价位；Hold填"N/A"或关键支撑价。**GENERAL场景例外**：填三价位字符串 `SPY=X; QQQ=Y; DIA=Z` |
   | operation_volume | 交易时必选: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE · Hold填"N/A" |
   
   ## 4. 辩论烈度宪章 (Intensity Charter)
@@ -126,8 +126,20 @@ shared_rules: |
   - 禁止空洞标签："X是优质资产"无效，"X因ABC属于高质量"有效
   - 即使高质量标的，若核心叙事被证伪，必须承认质量降级
   
-  ## 8. 输出铁律
-  
+  ## 8. 个股/ETF：大盘是决策上下文
+
+  分析个股或 ETF 时，必须结合大盘 regime（risk-on / risk-off / 板块轮动）评估信号有效性，
+  风控应叠加市场层面触发条件——再好的标的在 risk-off 中也跑不赢被动减仓。
+
+  ## 9. GENERAL 场景特殊规则
+
+  分析 symbol=GENERAL（大盘整体）时：
+  - 严禁把单一 ETF 当作分析对象——SPY/QQQ/DIA 必须各自被独立分析
+  - operation_target 输出三价位字符串：`SPY=612.50; QQQ=667.50; DIA=445.20`
+  - 三个价位之间的方向分歧是有效信号，必须在 reasoning 与 statement 中点明（如 sector rotation / 科技独走 等），禁止糊弄
+
+  ## 10. 输出铁律
+
   - 最终输出必须且只能是严格的JSON对象
   - 严格遵循任务指定的输出格式
   - Action必须是0-100的整数，不允许模糊表述

@@ -33,6 +33,7 @@ init_output: |
       * 市价单：填当前价作为锚点
       * 限价单：填你基于raw_data分析后认为合理的限价位
       * Hold：填"N/A"或关键支撑价
+      * **GENERAL（大盘整体）**：填三价位字符串 `SPY=X; QQQ=Y; DIA=Z`（分号分隔，等号连接，2位小数）
   - **operation_volume**: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"（Hold时）
   - **mentality**: 1-5种最终心态及概率（总和通常为1，忽略极小项）
       可选心态name: buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively /
@@ -72,6 +73,7 @@ debate_output: |
       * 市价单：填当前价作为锚点
       * 限价单：填你基于raw_data分析后认为合理的限价位
       * Hold：填"N/A"或关键支撑价
+      * **GENERAL（大盘整体）**：填三价位字符串 `SPY=X; QQQ=Y; DIA=Z`（分号分隔，等号连接，2位小数）
   - **operation_volume**: PILOT_SIZE / STANDARD_SIZE / AGGRESSIVE_SIZE / "N/A"（Hold时）
   - **mentality**: 1-5种最终心态及概率（总和通常为1，忽略极小项）
       可选心态name: buy_the_dip / fomo_buy / profit_taking / cut_losses_aggressively /
