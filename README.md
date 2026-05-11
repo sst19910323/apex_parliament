@@ -122,7 +122,7 @@ Each decision cycle is fed by the following data sources:
 
 **Per-symbol macro + sector backdrop.** `symbols.yaml` now tags every stock with its own primary benchmark and sector ETF (e.g. NVDA → QQQ + SMH, JPM → SPY + XLF). When a stock is analyzed, the prompt receives that stock's specific benchmark and sector context — not a generic SPY everywhere. The sector layer was added alongside (XLF / XLV / XLE / XLU / XLP / IGV / ITA / REMX) so the AI can reason "NVDA vs. its semis peers" and "JPM in a risk-off financial regime" instead of just "stock vs. broad market."
 
-**Mechanical memory inheritance.** Child analyses (an individual stock) now inherit their parent's most recent debate snapshot (the matching sector ETF and the matching benchmark) as compressed context, provided the parent report is within `inheritance_max_age` (default 1h). This guarantees the debaters always have fresh top-down context without having to re-derive it. *Earlier the Chronicler was supposed to manage this memory dynamically; after the moderator role was stripped, memory passing was demoted to a deterministic code path to keep behavior predictable.*
+**Mechanical memory inheritance + DAG-driven run pool.** Child analyses (an individual stock) now inherit their parent's most recent debate snapshot (the matching sector ETF and the matching benchmark) as compressed context, provided the parent report is within `inheritance_max_age` (default 1h). To make sure that "parent" actually exists when "child" starts, `horizon_sentinel.py` builds a DAG from the `sector` field in `symbols.yaml` and runs the pool top-down: **GENERAL first → sector ETFs and broad-base ETFs → individual stocks (each one waiting for its sector ETF debate to finish)**. LLM concurrency is globally capped (default 8), and IBKR fetches are serialized with ≥1s spacing. Inheritance is on by default. *Earlier the Chronicler was supposed to manage this memory dynamically; after the moderator role was stripped, memory passing was demoted to a deterministic code path to keep behavior predictable.*
 
 ---
 
@@ -356,7 +356,7 @@ apex_parliament/
 │
 ├── apex_quant_entry.py              # FastAPI backend entry point
 ├── data_scheduler.py                # Low-frequency data scheduler (news, fundamentals — API rate limited)
-├── horizon_sentinel.py              # AI debate scheduler (rolling batch market data + LLM debate)
+├── horizon_sentinel.py              # AI debate scheduler (DAG pool: GENERAL → sectors → stocks)
 ├── run_debate.py                    # LangGraph debate engine entry (called by horizon_sentinel)
 ├── clean_cache.py                   # Cache cleanup utility
 ├── start.sh / stop.sh               # Start/stop all three services
@@ -507,7 +507,7 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 
 **逐标的的大盘 + 板块背景。** `symbols.yaml` 现在给每只个股标注它自己的主基准和所属板块 ETF（例如 NVDA → QQQ + SMH，JPM → SPY + XLF）。分析某只个股时，提示词里塞的就是这只股票对应的基准和板块背景，而不是千篇一律的 SPY。同时新增了板块层（XLF / XLV / XLE / XLU / XLP / IGV / ITA / REMX），AI 可以推理"NVDA 在半导体同行里强弱如何"或"JPM 处于金融板块 risk-off 之中"，而不是只有"个股 vs 大盘"。
 
-**机械化的记忆传递。** 子层分析（个股）现在会自动继承父层（对应板块 ETF + 对应基准）最近一次辩论快照作为压缩上下文，前提是父层报告在 `inheritance_max_age`（默认 1h）以内。这样辩论者拿到的永远是新鲜的自上而下背景，不需要自己重新推导。*原本这部分记忆是想让史官动态管理的；裁判职责剥离之后，记忆传递降级为代码确定性逻辑，行为可预测。*
+**机械化的记忆传递 + DAG 调度的运行池。** 子层分析（个股）现在会自动继承父层（对应板块 ETF + 对应基准）最近一次辩论快照作为压缩上下文，前提是父层报告在 `inheritance_max_age`（默认 1h）以内。为了保证开始辩论时"父层"确实已经存在，`horizon_sentinel.py` 会按 `symbols.yaml` 的 `sector` 字段构 DAG，自顶向下跑 pool：**先 GENERAL → 再板块 ETF 和宽基 ETF → 再个股（每只个股等自己所属的板块 ETF 辩论完成才入池）**。LLM 并发全局受 Semaphore 限制（默认 8），IBKR 拉数据强制串行 + 每次间隔 ≥1s。默认开启继承。*原本这部分记忆是想让史官动态管理的；裁判职责剥离之后，记忆传递降级为代码确定性逻辑，行为可预测。*
 
 ---
 
@@ -741,7 +741,7 @@ apex_parliament/
 │
 ├── apex_quant_entry.py              # FastAPI 后端入口
 ├── data_scheduler.py                # 低频数据采集调度器（新闻、基本面，受 API 限额约束）
-├── horizon_sentinel.py              # AI 辩论调度器（滚动批次获取行情 + 触发 LLM 辩论）
+├── horizon_sentinel.py              # AI 辩论调度器（DAG pool：GENERAL → 板块 → 个股）
 ├── run_debate.py                    # LangGraph 辩论引擎入口（horizon_sentinel 调用）
 ├── clean_cache.py                   # 缓存清理工具
 ├── start.sh / stop.sh               # 三个服务一键启停
