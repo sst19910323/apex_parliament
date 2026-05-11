@@ -25,12 +25,13 @@ class LLMClient:
         self.default_model_key = self.full_config.get("default_model", "qwen3-max")
         
         # 2. 定义角色到模型 Key 的映射 (根据您的 models.yaml)
+        # 模型分配 (临时全切 deepseek - 阿里云月包用完, 等下个月再分配 qwen):
         self.role_mapping = {
             "zealot":     "deepseek",
             "reaper":     "deepseek",
-            "fulcrum":    "qwen3-max",
-            "chronicler": "qwen3.6-plus",
-            "general":    self.default_model_key
+            "fulcrum":    "deepseek",
+            "chronicler": "deepseek",
+            "general":    "deepseek",
         }
 
     def _load_full_config(self) -> Dict[str, Any]:

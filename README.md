@@ -32,7 +32,7 @@ Three debaters hold fixed investment philosophies and must complete a structured
 
 A fourth agent sits **outside** the debate:
 
-- 📜 **Chronicler** — Archivist, moderator, and synthesizer. Holds no market view and never touches raw data. Watches every round, decides whether to continue or terminate based on information increment, and — once the debate concludes — synthesizes the final report from the argument chains alone. Separating the chronicler from Fulcrum keeps each role honest: debaters debate, the record-keeper records.
+- 📜 **Chronicler** — Pure report synthesizer. Holds no market view and never touches raw data. Once the debate concludes, writes the final report from the argument chains alone. *Originally the Chronicler also moderated rounds and managed memory, but in practice an AI moderator turned out to be a compromiser — debaters quickly noticed and started phoning it in, expecting the moderator to call it quits. The moderator role was therefore stripped out (see Stage 2 below) and memory is now passed mechanically, leaving the Chronicler with one job only.*
 
 **Key design insight:** The mirror of an optimist is not a pessimist, but a profit-taker. Reaper doesn't ask "will it drop?" but "is it still worth holding?"
 
@@ -44,7 +44,7 @@ A fourth agent sits **outside** the debate:
 
 **Stage 1 — Independent Initialization:** All three debaters receive the same raw data simultaneously and form judgments independently, with no communication.
 
-**Stage 2 — Open Debate:** After seeing each other's initial positions, agents engage in multi-round debate. The debate constitution requires each round to introduce new evidence or new angles — restating one's position doesn't count as valid argument, and rhetorical intensity doesn't equal argument strength. After each round, the Chronicler decides whether to continue or terminate.
+**Stage 2 — Open Debate:** After seeing each other's initial positions, agents engage in multi-round debate. The debate constitution requires each round to introduce new evidence or new angles — restating one's position doesn't count as valid argument, and rhetorical intensity doesn't equal argument strength. Whether to enter the next round is voted on by the three debaters themselves (each emits a `wants_continue` flag, same logic as the `debate_intensity` field): **as long as at least one debater wants to continue, the round goes on**; a hard cap of 10 rounds prevents runaways.
 
 **Stage 3 — Report & Signatures:** The Chronicler synthesizes the final report with actionable instructions (BUY/SELL/HOLD + position size + entry/stop conditions), strictly within the envelope formed by the three debaters' final stances; Zealot, Reaper, and Fulcrum each attach a signature recording their own final position — users with different risk appetites can reference these.
 
@@ -119,6 +119,10 @@ Each decision cycle is fed by the following data sources:
 
 - `analysis/symbol_prefix.py` flattens every nested data block so every leaf key starts with the owning symbol — e.g. `QQQ_daily_technicals_ma_20_daily_val`, `SPY_current_snapshot_last_price`. Ownership is now syntactically inseparable from the value.
 - The debate constitution (`shared_rules.yaml`) and `task.yaml` add explicit anti-tunnel-vision rules: stock/ETF analysis must evaluate signals **against the prevailing macro regime**, and `GENERAL` runs must analyze SPY / QQQ / DIA as three independent lenses — divergence between them (e.g. tech going solo while industrials lag) is itself a required signal, not noise to be smoothed over. The `operation_target` for `GENERAL` is now a three-price string (`SPY=X; QQQ=Y; DIA=Z`) so the AI can't collapse the three lenses into one number.
+
+**Per-symbol macro + sector backdrop.** `symbols.yaml` now tags every stock with its own primary benchmark and sector ETF (e.g. NVDA → QQQ + SMH, JPM → SPY + XLF). When a stock is analyzed, the prompt receives that stock's specific benchmark and sector context — not a generic SPY everywhere. The sector layer was added alongside (XLF / XLV / XLE / XLU / XLP / IGV / ITA / REMX) so the AI can reason "NVDA vs. its semis peers" and "JPM in a risk-off financial regime" instead of just "stock vs. broad market."
+
+**Mechanical memory inheritance.** Child analyses (an individual stock) now inherit their parent's most recent debate snapshot (the matching sector ETF and the matching benchmark) as compressed context, provided the parent report is within `inheritance_max_age` (default 1h). This guarantees the debaters always have fresh top-down context without having to re-derive it. *Earlier the Chronicler was supposed to manage this memory dynamically; after the moderator role was stripped, memory passing was demoted to a deterministic code path to keep behavior predictable.*
 
 ---
 
@@ -236,7 +240,7 @@ Edit `config/models.yaml` to add the models you want to use. You only need two o
 
 - **Zealot 0.9, Reaper 0.8** — adversarial debaters need more exploration
 - **Fulcrum 0.3** — a stubborn damper; its job is to hold ground, not to improvise
-- **Chronicler 0.3** — the archivist and report writer; must stay faithful to what was actually said
+- **Chronicler 0.3** — the report writer; must stay faithful to what was actually said. (After the moderator role was stripped, Chronicler now does report writing only — memory is passed mechanically by code, and continuation is voted on by the debaters.)
 
 ```yaml
 # config/models.yaml
@@ -315,7 +319,7 @@ apex_parliament/
 │   │   ├── zealot_soul.yaml         #   🔴 Zealot — always long (debater)
 │   │   ├── reaper_soul.yaml         #   🔵 Reaper — the realist (debater)
 │   │   ├── fulcrum_soul.yaml        #   ⚖️ Fulcrum — the damper (debater)
-│   │   ├── chronicler_soul.yaml     #   📜 Chronicler — archivist & synthesizer (outside debate)
+│   │   ├── chronicler_soul.yaml     #   📜 Chronicler — final-report synthesizer (outside debate)
 │   │   └── shared_rules.yaml        #   Shared debate rules
 │   ├── formats/                     # Output format templates
 │   │   ├── debate_output.yaml       #   Debate round output format
@@ -355,7 +359,8 @@ apex_parliament/
 ├── horizon_sentinel.py              # AI debate scheduler (rolling batch market data + LLM debate)
 ├── run_debate.py                    # LangGraph debate engine entry (called by horizon_sentinel)
 ├── clean_cache.py                   # Cache cleanup utility
-├── start.sh / stop.sh               # Service start/stop scripts
+├── start.sh / stop.sh               # Start/stop all three services
+├── start_backend.sh / stop_backend.sh # Start/stop only the FastAPI backend
 └── requirements.txt                 # Python dependencies
 ```
 
@@ -412,7 +417,7 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 
 辩论桌之外还有第四位 Agent：
 
-- 📜 **Chronicler**（史官）— 档案员、秩序维护者与综合者。不持有任何市场立场，也不接触原始数据。旁听每一轮发言，根据信息增量判断是继续还是终止；辩论结束后，仅凭三方论证链撰写最终报告。把史官从 Fulcrum 身上分离出来，是为了让每个角色保持纯粹：辩论者专心辩论，记录者专心记录。
+- 📜 **Chronicler**（史官）— 纯报告综合者。不持有任何市场立场，也不接触原始数据。辩论结束后，仅凭三方论证链撰写最终报告。*史官最初还兼任秩序维护和记忆管理，但实跑发现：让 AI 当裁判，它本质上是个和稀泥的角色——辩论者一旦看穿这点，就开始敷衍，等着裁判一两个回合就宣告结束。所以裁判职责被剥离（见下面 Stage 2），记忆改为机械传递，史官只剩"写报告"这一项。*
 
 **关键设计洞察：** 乐观者的镜像不是悲观者，而是止盈者。Reaper 问的不是"会不会跌"，而是"还值不值得拿"。
 
@@ -424,7 +429,7 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 
 **Stage 1 — 独立初始化：** 三位辩论者同时收到相同的原始数据，各自独立形成判断，互不通信。
 
-**Stage 2 — 自由辩论：** 看到彼此的初始判断后展开多轮辩论。辩论宪法规定每轮必须引入新论据或新角度——重复己方立场不算有效论证，修辞强度不等于论证强度。每轮结束后，由 Chronicler 判断是否进入下一轮。
+**Stage 2 — 自由辩论：** 看到彼此的初始判断后展开多轮辩论。辩论宪法规定每轮必须引入新论据或新角度——重复己方立场不算有效论证，修辞强度不等于论证强度。是否进入下一轮由三位辩论者自己投票决定（每人输出一个 `wants_continue` 标记，与 `debate_intensity` 同一思路）：**只要有一人想继续，本轮就继续**；10 轮硬上限兜底防失控。
 
 **Stage 3 — 报告与签名：** Chronicler 综合三方论证链，在三方最终立场构成的包络区间内撰写最终报告，输出可执行指令（BUY/SELL/HOLD + 仓位大小 + 入场/止损条件）；Zealot、Reaper、Fulcrum 各自附签自己最终轮的立场——风险偏好不同的使用者可以自行参考。
 
@@ -499,6 +504,10 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 
 - `analysis/symbol_prefix.py` 把所有嵌套数据扁平化，每一个 leaf key 都以所属标的开头——比如 `QQQ_daily_technicals_ma_20_daily_val`、`SPY_current_snapshot_last_price`。归属关系直接焊在 key 上，AI 想抹也抹不掉。
 - 辩论宪法（`shared_rules.yaml`）和 `task.yaml` 增加了显式的防偏规则：分析个股/ETF 时必须**结合大盘 regime** 评估信号有效性；`GENERAL` 场景必须把 SPY / QQQ / DIA 当作三个独立镜头分别分析——三者的方向分歧本身就是必须解读的信号（比如科技独走、工业拖后），不允许被糊弄掉。`GENERAL` 的 `operation_target` 现在输出三价位字符串（`SPY=X; QQQ=Y; DIA=Z`），AI 没法把三个镜头压成一个数字。
+
+**逐标的的大盘 + 板块背景。** `symbols.yaml` 现在给每只个股标注它自己的主基准和所属板块 ETF（例如 NVDA → QQQ + SMH，JPM → SPY + XLF）。分析某只个股时，提示词里塞的就是这只股票对应的基准和板块背景，而不是千篇一律的 SPY。同时新增了板块层（XLF / XLV / XLE / XLU / XLP / IGV / ITA / REMX），AI 可以推理"NVDA 在半导体同行里强弱如何"或"JPM 处于金融板块 risk-off 之中"，而不是只有"个股 vs 大盘"。
+
+**机械化的记忆传递。** 子层分析（个股）现在会自动继承父层（对应板块 ETF + 对应基准）最近一次辩论快照作为压缩上下文，前提是父层报告在 `inheritance_max_age`（默认 1h）以内。这样辩论者拿到的永远是新鲜的自上而下背景，不需要自己重新推导。*原本这部分记忆是想让史官动态管理的；裁判职责剥离之后，记忆传递降级为代码确定性逻辑，行为可预测。*
 
 ---
 
@@ -616,7 +625,7 @@ pip install -r requirements.txt
 
 - **Zealot 0.9、Reaper 0.8** —— 对抗性辩论者需要更大的探索空间
 - **Fulcrum 0.3** —— 顽固的阻尼器，职责是守住立场而不是发挥
-- **Chronicler 0.3** —— 档案员与报告撰写者，必须忠于辩论实际发生的内容
+- **Chronicler 0.3** —— 报告撰写者，必须忠于辩论实际发生的内容。（剥离裁判职责后，史官只管写报告——记忆由代码机械传递，是否进入下一轮由辩论者投票决定。）
 
 ```yaml
 # config/models.yaml
@@ -695,7 +704,7 @@ apex_parliament/
 │   │   ├── zealot_soul.yaml         #   🔴 Zealot - 永远做多（辩论者）
 │   │   ├── reaper_soul.yaml         #   🔵 Reaper - 现实主义者（辩论者）
 │   │   ├── fulcrum_soul.yaml        #   ⚖️ Fulcrum - 阻尼器（辩论者）
-│   │   ├── chronicler_soul.yaml     #   📜 Chronicler - 史官（辩论之外的记录与综合）
+│   │   ├── chronicler_soul.yaml     #   📜 Chronicler - 史官（辩论之外的最终报告撰写者）
 │   │   └── shared_rules.yaml        #   共享辩论规则
 │   ├── formats/                     # 输出格式模板
 │   │   ├── debate_output.yaml       #   辩论轮次输出格式
@@ -735,7 +744,8 @@ apex_parliament/
 ├── horizon_sentinel.py              # AI 辩论调度器（滚动批次获取行情 + 触发 LLM 辩论）
 ├── run_debate.py                    # LangGraph 辩论引擎入口（horizon_sentinel 调用）
 ├── clean_cache.py                   # 缓存清理工具
-├── start.sh / stop.sh               # 服务启停脚本
+├── start.sh / stop.sh               # 三个服务一键启停
+├── start_backend.sh / stop_backend.sh # 仅启停 FastAPI 后端
 └── requirements.txt                 # Python 依赖
 ```
 

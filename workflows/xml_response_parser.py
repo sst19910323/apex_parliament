@@ -25,6 +25,7 @@ DEFAULT_RESPONSE = {
     "operation_type": "HOLD_NEUTRAL",
     "operation_target": "N/A",
     "operation_volume": "N/A",
+    "wants_continue": True,  # 默认倾向继续辩论 (解析失败时不要让辩论被偶然提前终止)
     "preliminary_mentality": [
         {"name": "wait_and_see", "probability": 1.0}
     ],
@@ -106,7 +107,8 @@ def _parse_xml_strict(xml_str: str, role: str) -> Optional[Dict[str, Any]]:
         simple_fields = [
             "debate_intensity", "action", "operation_type",
             "operation_target", "operation_volume",
-            "summary_statement", "analysis_text", "decision"
+            "summary_statement", "analysis_text", "decision",
+            "wants_continue",  # 三方自决要不要进入下一轮
         ]
         
         for field in simple_fields:
@@ -158,6 +160,7 @@ def _parse_regex_fallback(text: str, role: str) -> Optional[Dict[str, Any]]:
         "operation_target": r'<operation_target>\s*(.*?)\s*</operation_target>',
         "operation_volume": r'<operation_volume>\s*(.*?)\s*</operation_volume>',
         "decision": r'<decision>\s*(.*?)\s*</decision>',
+        "wants_continue": r'<wants_continue>\s*(.*?)\s*</wants_continue>',
     }
     
     for field, pattern in simple_patterns.items():
@@ -266,11 +269,22 @@ def _validate_and_fix(data: Dict[str, Any], role: str) -> Dict[str, Any]:
             {"name": "wait_and_see", "probability": 1.0}
         ]
     
-    # decision (仅Fulcrum)
+    # decision (legacy, 仅Fulcrum时代遗留, 可能新版本不再出现)
     if "decision" in data:
         decision = str(data["decision"]).upper().strip()
         data["decision"] = decision if decision in {"CONTINUE", "TERMINATE"} else "CONTINUE"
-    
+
+    # wants_continue (新): 三方自决是否继续辩论
+    # 解析 true/false/1/0/yes/no, 默认 True (倾向继续)
+    if "wants_continue" in data:
+        raw_wc = str(data["wants_continue"]).strip().lower()
+        if raw_wc in {"false", "0", "no", "否", "不", "terminate", "stop", "end"}:
+            data["wants_continue"] = False
+        else:
+            data["wants_continue"] = True
+    else:
+        data["wants_continue"] = True  # 字段缺失默认 True
+
     return data
 
 

@@ -18,12 +18,21 @@ models:
     model_id: "qwen3.6-plus"
     temperature: 0.3
     timeout: 180
-  
-  # --- Deepseek 配置 ---
+
+  # qwen3.6-max: qwen3-max 的提升版本 (preview 阶段), 给 Fulcrum 用
+  qwen3.6-max:
+    name: "qwen3.6-max"
+    api_key: "your_dashscope_api_key"
+    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    model_id: "qwen3.6-max-preview"
+    temperature: 0.3
+    timeout: 180
+
+  # --- Deepseek 配置 (给 zealot/reaper 用) ---
   deepseek:
     name: "deepseek"
     api_key: "your_deepseek_api_key"
-    base_url: "https://api.deepseek.com/v1" 
+    base_url: "https://api.deepseek.com/v1"
     model_id: "deepseek-v4-flash"
     temperature: 0.8
     timeout: 180

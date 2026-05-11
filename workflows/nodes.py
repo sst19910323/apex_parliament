@@ -249,6 +249,134 @@ class ParliamentNodes:
     #      - 决定下一轮turn_count
     # =========================================================================
 
+    # =========================================================================
+    # 3. Moderation (V11+) — 纯代码节点, 史官封存后接管
+    # =========================================================================
+    # 决策逻辑:
+    #   - Init 阶段 (turn=0): 强制 CONTINUE, 至少跑 1 轮真辩论
+    #   - 三方 wants_continue 任一为 true => CONTINUE
+    #   - 三方都 false => TERMINATE
+    #   - turn >= max_turns 触顶 => TERMINATE (硬上限, 由 _route 处理)
+    # 历史记录:
+    #   - debate_history: 留 raw_xml 给 final JSON 存档
+    #   - polished_debate_history: 直接用 analysis_text 作 'polished_text' (代码精简,
+    #     不烧 LLM; 后续若想智能压缩可在此处插 chronicler 复活)
+
+    def moderation_node(self, state: DebateState) -> Dict[str, Any]:
+        turn = state.get('turn_count', 0)
+        is_init_phase = (turn == 0)
+        round_label   = "Init" if is_init_phase else f"回合{turn}"
+        logger.info(f"--- [Moderation] {round_label} ---")
+
+        zealot_xml  = state.get('zealot_latest', '')
+        reaper_xml  = state.get('reaper_latest', '')
+        fulcrum_xml = state.get('fulcrum_latest', '')
+
+        z_parsed = self._parse_debate_output(zealot_xml,  "zealot")
+        r_parsed = self._parse_debate_output(reaper_xml,  "reaper")
+        f_parsed = self._parse_debate_output(fulcrum_xml, "fulcrum")
+
+        # 三方投票 (parser 已确保 wants_continue 是 bool, 缺失默认 True)
+        z_wc = bool(z_parsed.get('wants_continue', True))
+        r_wc = bool(r_parsed.get('wants_continue', True))
+        f_wc = bool(f_parsed.get('wants_continue', True))
+        any_wants = z_wc or r_wc or f_wc
+
+        if is_init_phase:
+            decision = "CONTINUE"  # Init 不是辩论, 强制至少跑 1 轮
+            reason = "Post-init forced CONTINUE"
+        elif any_wants:
+            decision = "CONTINUE"
+            voters = [name for name, v in [("Z", z_wc), ("R", r_wc), ("F", f_wc)] if v]
+            reason = f"Vote: continue requested by {voters}"
+        else:
+            decision = "TERMINATE"
+            reason = "Vote: all three agents agreed to end"
+
+        logger.info(f"[Moderation] {round_label} | Z={z_wc} R={r_wc} F={f_wc} | decision={decision}")
+
+        # debate_history: 完整 raw_xml 留档
+        batch_updates = [
+            {"role": "Zealot",  "round": round_label, "content": z_parsed, "raw_xml": zealot_xml},
+            {"role": "Reaper",  "round": round_label, "content": r_parsed, "raw_xml": reaper_xml},
+            {"role": "Fulcrum", "round": round_label, "content": f_parsed, "raw_xml": fulcrum_xml},
+        ]
+
+        # polished_debate_history: 代码精简 = 直接用 analysis_text + summary_statement
+        def _quick_polish(parsed: Dict[str, Any]) -> str:
+            summary = parsed.get('summary_statement', '') or ''
+            analysis = parsed.get('analysis_text', '') or ''
+            action = parsed.get('action', 50)
+            op = parsed.get('operation_type', 'HOLD_NEUTRAL')
+            head = f"[action={action} op={op}] {summary}".strip()
+            return f"{head}\n{analysis}".strip() if analysis else head
+
+        polished_updates = [
+            {"role": "Zealot",  "round": round_label, "content": z_parsed,
+             "polished_text": _quick_polish(z_parsed) or zealot_xml},
+            {"role": "Reaper",  "round": round_label, "content": r_parsed,
+             "polished_text": _quick_polish(r_parsed) or reaper_xml},
+            {"role": "Fulcrum", "round": round_label, "content": f_parsed,
+             "polished_text": _quick_polish(f_parsed) or fulcrum_xml},
+        ]
+
+        next_turn = turn + 1
+
+        return {
+            "debate_history":          batch_updates,
+            "polished_debate_history": polished_updates,
+            "debate_status":           decision,
+            "turn_count":              next_turn,
+            "current_phase":           "finalize" if decision == "TERMINATE" else "debate",
+        }
+
+    # =========================================================================
+    # 4. Fulcrum Finalize (V11+) — 史官封存后, Fulcrum 兼职写最终报告
+    # =========================================================================
+
+    def fulcrum_finalize_node(self, state: DebateState) -> Dict[str, Any]:
+        logger.info("--- [Fulcrum] Finalizing (writing final report) ---")
+
+        # 复用 Fulcrum 自己的 messages 线程, 他已有完整辩论上下文
+        messages      = list(state.get('fulcrum_messages', []))
+        output_format = self.pm.get_output_format("chronicler", "finalize")  # 复用旧的 final_report 格式
+        symbol        = state.get('symbol', 'UNKNOWN')
+
+        finalize_msg = (
+            f"## 最终报告阶段 | 标的：{symbol}\n\n"
+            f"辩论已结束。作为支点裁决人, 基于你和 Zealot/Reaper 完整的辩论历程,\n"
+            f"撰写最终综合报告。\n\n"
+            f"**关键提示**：报告中的 action 来自三方论证质量的综合权衡, **不一定等于你**\n"
+            f"**最后一轮自己的立场**——若 Zealot 或 Reaper 在某些维度提出了你未充分回应的关键证据,\n"
+            f"应在最终 action 上体现该侧立场的权重。避免懒惰式直接复用你最后的 fulcrum_last_action.\n\n"
+            f"## 输出格式\n{output_format}"
+        )
+        messages.append({"role": "user", "content": finalize_msg})
+        resp = self.call_llm(messages, role="fulcrum")
+        messages.append({"role": "assistant", "content": resp})
+
+        output = self._parse_final_report(resp)
+        report = output.get('final_report', output)
+
+        # Fulcrum 是报告撰写人, 不需要再对自己的报告 signoff;
+        # 直接用 report 的 action 作为他的 final_action, reservation 留空
+        fulcrum_signoff = {
+            "final_action": report.get('action', state.get('fulcrum_last_action', 50)),
+            "reservation":  "(报告撰写人，立场即报告 action)",
+        }
+
+        return {
+            "fulcrum_messages": messages,
+            "final_report":     report,
+            "fulcrum_signoff":  fulcrum_signoff,
+            "current_phase":    "signoff",
+        }
+
+    # =========================================================================
+    # [封存] Chronicler Moderation — V9.7 旧实现, 已被 moderation_node 接管
+    # 保留代码用于兼容性; 不再被 LangGraph 调用
+    # =========================================================================
+
     def chronicler_moderation_node(self, state: DebateState) -> Dict[str, Any]:
         turn = state.get('turn_count', 0)
         is_init_phase = (turn == 0)
@@ -334,23 +462,31 @@ class ParliamentNodes:
     # =========================================================================
 
     def chronicler_finalize_node(self, state: DebateState) -> Dict[str, Any]:
-        logger.info("--- [Chronicler] Finalizing ---")
+        """V11: 史官只负责 finalize, 不参与每轮 moderation, 所以这里 fresh 构建对话.
+        喂他: chronicler_soul (系统) + 完整 raw_xml 辩论历史 (用户) + finalize 任务.
+        不喂 raw_data (保持中立综合者定位, 引用必须来自三方辩论)."""
+        logger.info("--- [Chronicler] Finalizing (V11: synthesis-only) ---")
 
-        messages      = list(state.get('chronicler_messages', []))
-        if not messages:
-            # 兜底：未被moderation过就直接finalize（理论不该发生）
-            system_content = self.pm.get_system_prompt("chronicler")
-            messages.append({"role": "system", "content": system_content})
+        system_content = self.pm.get_system_prompt("chronicler")
+        output_format  = self.pm.get_output_format("chronicler", "finalize")
+        symbol         = state.get('symbol', 'UNKNOWN')
 
-        output_format = self.pm.get_output_format("chronicler", "finalize")
-        symbol        = state.get('symbol', 'UNKNOWN')
+        # 完整辩论记录: _fmt_debate_batch 优先用 polished_text, fallback raw_xml
+        history     = state.get('debate_history', []) or state.get('polished_debate_history', [])
+        history_str = self._fmt_debate_batch(history) if history else "（无辩论记录）"
 
         finalize_msg = (
             f"## 最终报告阶段 | 标的：{symbol}\n\n"
-            f"辩论已结束。基于你在线程中旁听记录的完整辩论历程，请撰写最终裁决报告。\n\n"
+            f"以下是 Z/R/F 三方完整辩论历史 (Init + 各回合)。\n"
+            f"基于这些发言, 综合三方论证质量, 撰写最终裁决报告。\n\n"
+            f"## 完整辩论记录\n{history_str}\n\n"
             f"## 输出格式\n{output_format}"
         )
-        messages.append({"role": "user", "content": finalize_msg})
+
+        messages = [
+            {"role": "system", "content": system_content},
+            {"role": "user",   "content": finalize_msg},
+        ]
         resp = self.call_llm(messages, role="chronicler")
         messages.append({"role": "assistant", "content": resp})
 
@@ -384,7 +520,7 @@ class ParliamentNodes:
         signoff_msg = (
             f"## 完整辩论记录\n{history_str}\n\n"
             f"## 签章确认 | 标的：{symbol}\n\n"
-            f"## 史官(Chronicler)最终裁决报告\n{final_report_str}\n\n"
+            f"## 最终裁决报告\n{final_report_str}\n\n"
             f"## 输出格式\n{output_format}"
         )
         messages.append({"role": "user", "content": signoff_msg})
@@ -443,6 +579,13 @@ class ParliamentNodes:
         data_files = state.get('data_files', {})
         if data_files:
             final_json['data_files'] = data_files
+            # 顶层暴露 parent_analysis_file (跨层记忆继承的实际依赖文件)
+            if isinstance(data_files, dict):
+                final_json['parent_analysis_file'] = data_files.get('parent_analysis_file')
+            else:
+                final_json['parent_analysis_file'] = None
+        else:
+            final_json['parent_analysis_file'] = None
 
         try:
             symbol = state.get('symbol', 'GENERAL').upper()

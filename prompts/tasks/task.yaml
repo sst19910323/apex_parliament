@@ -69,43 +69,55 @@ signoff_task: |
 # 跨标的引用时禁止抹掉前缀。
 # -----------------------------------------------------------------
 
-# Stock（个股）
+# Stock（个股）—— 分层结构：宏观 → 板块（可空）→ 个股
 raw_data_stock: |
-  ### 参考背景（用于风险与情景判断，非分析对象）
-  - 宏观与政治新闻: {general_news_data}
+  {inheritance_block}
+
+  ### 相关新闻
+  {news_data}
+
+  ### 宏观背景
   - 经济基本面（CPI/利率/GDP 等）: {macro_data}
   - 市场情绪指数（Fear & Greed / VIX）: {fear_greed_data}
-  - 三大基准 ETF 技术指标（SPY/QQQ/DIA）: {benchmark_data}
+  - 主基准 ETF（{benchmark_symbol}，与 {symbol} 最相关）技术指标: {benchmark_data}
+
+  {sector_block}
 
   ### 分析对象 = {symbol}
   以下数据均属于 {symbol}（key 已带前缀）：
   - 公司概况: {profile_data}
   - 技术指标: {tech_data}
   - 基本面: {fundamentals_data}
-  - 公司新闻: {news_data}
 
-  ### 大盘是过滤器，不是装饰
-  个股不独立于大盘。结合 {symbol} 行业属性选合适的基准 ETF 做相对强弱判断，
-  把当前 regime（risk-on / risk-off / 板块轮动）纳入信号有效性评估，
-  风险管理叠加市场层面触发条件。
+  ### 分层逻辑
+  从宏观 → 板块（如有）→ 个股层层下沉。各层方向一致是高置信信号；
+  矛盾时在 reasoning 中点明哪一层占主导（如：宏观 risk-off + 板块跑赢 + 个股技术破位 = 板块抗跌但个股自身瑕疵）。
 
-# ETF（SPY/QQQ/GLD 等）
+  ### 基本面时效性
+  fundamentals 中 PE / EPS / PEG / profit_margin 为 TTM 口径，锚定 `latest_quarter`。
+  结合 `days_since_latest_quarter` 与公司近期业绩变动，自行评估这些指标的时效有效性。
+
+# ETF（宽基 SPY/QQQ/GLD + 板块 SMH/XLF/XLV/...）—— 两层：宏观 → ETF 自身
 raw_data_etf: |
-  ### 参考背景（用于风险与情景判断，非分析对象）
-  - 宏观与政治新闻: {general_news_data}
+  {inheritance_block}
+
+  ### 相关新闻
+  {news_data}
+
+  ### 宏观背景
   - 经济基本面: {macro_data}
   - 市场情绪指数: {fear_greed_data}
-  - 其他基准 ETF 技术指标（已剔除本标的自身）: {benchmark_data}
+  - 主基准（{benchmark_symbol}）技术指标: {benchmark_data}
 
   ### 分析对象 = {symbol}
   以下数据均属于 {symbol}（key 已带前缀）：
   - ETF 概况: {profile_data}
   - 技术指标: {tech_data}
-  - 相关新闻: {news_data}
 
   ### 横向对比义务
-  ETF 自身就是宽基/行业指数，但仍需用其他 ETF 与宏观做横向锚定，
-  显式判断 {symbol} 相对其他基准的强弱。
+  显式判断 {symbol} 相对 {benchmark_symbol} 的强弱与背离。
+  若是板块 ETF（如 SMH/XLF），重点说明板块相对宽基的轮动方向；
+  若是宽基 ETF（SPY/QQQ/GLD），重点说明三类资产间的相对吸引力。
 
 # General（宏观市场分析）
 raw_data_general: |
@@ -115,7 +127,7 @@ raw_data_general: |
   综合判断市场整体走势。**严禁把任何单一 ETF 当作分析对象**——三者代表不同板块
   （宽基 / 科技重仓 / 工业金融），它们之间的分歧本身就是关键信号。
 
-  - 宏观与政治新闻: {general_news_data}
+  - 相关新闻: {news_data}
   - 经济基本面: {macro_data}
   - 市场情绪指数: {fear_greed_data}
   - 三大基准 ETF 技术指标（并列分析对象，三者各司其职）: {benchmark_data}

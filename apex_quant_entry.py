@@ -93,8 +93,108 @@ def get_symbols() -> List[Dict[str, str]]:
                     result_list.append({"symbol": s.upper(), "type": "etf"})
         except Exception as e:
             print(f"❌ Error reading symbols config: {e}")
-            
+
     return result_list
+
+# --- API 1b: 按板块/层级分组的标的列表 (前端按组渲染用) ---
+@app.get("/api/symbol-groups", tags=["Core"])
+def get_symbol_groups() -> List[Dict[str, Any]]:
+    """
+    返回按层级/板块分组的标的列表，前端可直接铺成分组行。
+
+    顺序:
+      1. 宏观                            (GENERAL)
+      2. 综合 / 宽基                     (benchmark=null 的 ETF: SPY/QQQ/GLD)
+      3. 各板块组 (按 yaml display_group) (板块 ETF + 该板块的成员个股)
+      4. 大盘核心 (无板块)               (无 sector 字段的个股)
+
+    返回结构:
+      [
+        {"group": "半导体", "items": [{"symbol":"SMH","type":"etf"},
+                                       {"symbol":"NVDA","type":"stock"}, ...]},
+        ...
+      ]
+    """
+    groups: List[Dict[str, Any]] = []
+
+    # 1. 宏观永远置顶
+    groups.append({
+        "group": "宏观",
+        "items": [{"symbol": "GENERAL", "type": "general"}]
+    })
+
+    if not CONFIG_SYMBOLS.exists():
+        return groups
+
+    try:
+        with open(CONFIG_SYMBOLS, 'r', encoding='utf-8') as f:
+            cfg = yaml.safe_load(f) or {}
+    except Exception as e:
+        print(f"❌ Error reading symbols config: {e}")
+        return groups
+
+    targets = cfg.get('analysis_targets', {})
+    contracts = cfg.get('symbol_contracts', {})
+
+    stock_list = [s.upper() for s in (targets.get('stocks') or [])]
+    etf_list = [s.upper() for s in (targets.get('etfs') or [])]
+
+    # 区分宽基 ETF (benchmark=null) 与 板块 ETF (有 benchmark)
+    broad_etfs: List[str] = []
+    sector_etfs: List[Tuple[str, str]] = []  # [(display_group, etf_symbol), ...]
+    for etf in etf_list:
+        info = contracts.get(etf, {}) or {}
+        if info.get('benchmark') is None:
+            broad_etfs.append(etf)
+        else:
+            display = info.get('display_group') or etf
+            sector_etfs.append((display, etf))
+
+    # 2. 综合 / 宽基
+    if broad_etfs:
+        groups.append({
+            "group": "综合 / 宽基",
+            "items": [{"symbol": s, "type": "etf"} for s in broad_etfs]
+        })
+
+    # 先一次性把所有个股按归属分桶: 有 sector 的进 sector_to_stocks, 否则按 display_group 进 custom_groups, 都没就 truly_orphan
+    sector_to_stocks: Dict[str, List[str]] = {etf: [] for _, etf in sector_etfs}
+    custom_groups: Dict[str, List[str]] = {}
+    truly_orphan: List[str] = []
+    for stock in stock_list:
+        info = contracts.get(stock, {}) or {}
+        sector = info.get('sector')
+        if sector and sector in sector_to_stocks:
+            sector_to_stocks[sector].append(stock)
+            continue
+        dg = info.get('display_group')
+        if dg:
+            custom_groups.setdefault(dg, []).append(stock)
+        else:
+            truly_orphan.append(stock)
+
+    # 3. 自定义组 (Mag7 等无 sector 但有 display_group 的) — 紧跟宽基之后, 排在板块之前
+    for dg_name, members in custom_groups.items():
+        groups.append({
+            "group": dg_name,
+            "items": [{"symbol": s, "type": "stock"} for s in members]
+        })
+
+    # 4. 板块组
+    for display, etf in sector_etfs:
+        items: List[Dict[str, str]] = [{"symbol": etf, "type": "etf"}]
+        for stock in sector_to_stocks.get(etf, []):
+            items.append({"symbol": stock, "type": "stock"})
+        groups.append({"group": display, "items": items})
+
+    # 5. 其它 (无 sector 也无 display_group)
+    if truly_orphan:
+        groups.append({
+            "group": "其它",
+            "items": [{"symbol": s, "type": "stock"} for s in truly_orphan]
+        })
+
+    return groups
 
 # --- API 2: 获取历史报告列表 ---
 @app.get("/api/reports/{symbol}", tags=["Core"])

@@ -1,6 +1,9 @@
 # -----------------------------------------------------------------
 # 文件路径: run_debate.py
-# (V10.0 - 四方架构：Z/R/F三辩论者 + Chronicler史官)
+# (V11.1 - Z/R/F 三辩论者 + Chronicler 复活仅做 finalize:
+#          Moderation 改为代码聚合三方 wants_continue 投票;
+#          Final Report 由 Chronicler 写 (Fulcrum 不再兼职, 灵魂换装方案否决);
+#          Z/R/F 三方对 Chronicler 的报告签章)
 # -----------------------------------------------------------------
 import logging
 import sys
@@ -42,7 +45,7 @@ if not logging.getLogger().hasHandlers():
 
 class DebateEngine:
     def __init__(self, config_rel_path: str = "config/models.yaml"):
-        logger.info("🔧 Initializing DebateEngine (V10.0 - Z/R/F + Chronicler)...")
+        logger.info("🔧 Initializing DebateEngine (V11.1 - Z/R/F + Chronicler-finalize)...")
         
         # 1. 绝对路径解析
         self.models_config_path = str(PROJECT_ROOT / config_rel_path)
@@ -66,14 +69,19 @@ class DebateEngine:
 
     def _build_graph(self):
         """
-        构建辩论流程图 (V10.0)
+        构建辩论流程图 (V11.1)
 
         流程：
-        1. Init：Z/R/F 顺序独立立场 → Chronicler moderation
-        2. Debate Loop：Z/R/F 顺序辩论 → Chronicler moderation → 路由CONTINUE/TERMINATE
-        3. Finalize：Chronicler 写最终报告
+        1. Init：Z/R/F 顺序独立立场 → moderation
+        2. Debate Loop：Z/R/F 顺序辩论 → moderation → 路由CONTINUE/TERMINATE
+        3. Finalize：Chronicler 写最终报告 (复活, fresh 构建对话, 喂全程辩论)
         4. Signoff：Z/R/F 三方并行签章
         5. Save
+
+        变更 vs V11.0：
+        - 史官复活, 仅做 synthesis (灵魂中 moderation/memory 已注释封存)
+        - 否决 Fulcrum 兼职写报告方案 (Fulcrum 灵魂没有综合心法)
+        - Fulcrum 恢复 signoff 节点 (回到 V10 的三方对等签章)
         """
         workflow = StateGraph(DebateState)
 
@@ -91,11 +99,11 @@ class DebateEngine:
         workflow.add_node("reaper_debate",  self.nodes.reaper_debate_node)
         workflow.add_node("fulcrum_debate", self.nodes.fulcrum_debate_node)
 
-        # Chronicler
-        workflow.add_node("chronicler_moderation", self.nodes.chronicler_moderation_node)
-        workflow.add_node("chronicler_finalize",   self.nodes.chronicler_finalize_node)
+        # Moderation (纯代码) + Finalize (Chronicler 复活, 仅做 synthesis)
+        workflow.add_node("moderation",          self.nodes.moderation_node)
+        workflow.add_node("chronicler_finalize", self.nodes.chronicler_finalize_node)
 
-        # Signoff 三方
+        # Signoff: Z/R/F 三方对等点评 Chronicler 写的最终报告
         workflow.add_node("zealot_signoff",  self.nodes.zealot_signoff_node)
         workflow.add_node("reaper_signoff",  self.nodes.reaper_signoff_node)
         workflow.add_node("fulcrum_signoff", self.nodes.fulcrum_signoff_node)
@@ -107,15 +115,15 @@ class DebateEngine:
         # 2. 连线
         # ==========================================
 
-        # Init → Chronicler moderation
+        # Init → moderation
         workflow.add_edge(START, "zealot_init")
         workflow.add_edge("zealot_init",  "reaper_init")
         workflow.add_edge("reaper_init",  "fulcrum_init")
-        workflow.add_edge("fulcrum_init", "chronicler_moderation")
+        workflow.add_edge("fulcrum_init", "moderation")
 
-        # Chronicler moderation → 路由
+        # moderation → 路由
         workflow.add_conditional_edges(
-            "chronicler_moderation",
+            "moderation",
             self._route_after_moderation,
             {
                 "debate":   "zealot_debate",
@@ -123,12 +131,12 @@ class DebateEngine:
             }
         )
 
-        # Debate 三方 → Chronicler moderation
+        # Debate 三方 → moderation
         workflow.add_edge("zealot_debate",  "reaper_debate")
         workflow.add_edge("reaper_debate",  "fulcrum_debate")
-        workflow.add_edge("fulcrum_debate", "chronicler_moderation")
+        workflow.add_edge("fulcrum_debate", "moderation")
 
-        # Chronicler finalize → 三方并行签章
+        # chronicler_finalize → 三方并行签章
         workflow.add_edge("chronicler_finalize", "zealot_signoff")
         workflow.add_edge("chronicler_finalize", "reaper_signoff")
         workflow.add_edge("chronicler_finalize", "fulcrum_signoff")
@@ -148,16 +156,17 @@ class DebateEngine:
 
     def _route_after_moderation(self, state: DebateState) -> Literal["debate", "finalize"]:
         """
-        Chronicler 裁定后的路由：
-        - TERMINATE 或 达到最大轮次 -> finalize
-        - CONTINUE -> debate
+        Moderation 后的路由 (V11+, 投票聚合后):
+        - TERMINATE (三方都不想继续) -> finalize
+        - turn >= max_turns 触顶 -> finalize (硬上限)
+        - 否则 (任一想继续) -> debate
         """
         decision = state.get("debate_status", "CONTINUE").upper()
         turn = state.get("turn_count", 1)
         max_turns = state.get("max_turns", 25)
 
         if decision == "TERMINATE":
-            logger.info(f"🛑 Chronicler decided to TERMINATE at round {turn}")
+            logger.info(f"🛑 All 3 agents agreed to TERMINATE at round {turn}")
             return "finalize"
 
         if turn >= max_turns:

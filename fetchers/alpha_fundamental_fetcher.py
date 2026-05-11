@@ -14,7 +14,7 @@ import json
 import os
 import sys
 import time
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional, List
@@ -79,10 +79,11 @@ class CompanyFundamentals:
     currency: Optional[str] = None
     fiscal_year_end: Optional[str] = None
     latest_quarter: Optional[str] = None
-    # 使用 UTC aware time
-    last_updated: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
+    # 距 latest_quarter 的天数。AI 一眼看到 100+ 天就能意识到 TTM 已经滞后，
+    # 在财报前后或剧烈行情期会自然降低 PE/EPS 等 TTM 衍生指标的权重。
+    days_since_latest_quarter: Optional[int] = None
 
-    def to_dict(self) -> Dict[str, Optional[str] | Optional[float]]:
+    def to_dict(self) -> Dict[str, Optional[str] | Optional[float] | Optional[int]]:
         return asdict(self)
 
 # ──────────────────────────── Config & Utilities ──────────────────────────── #
@@ -189,6 +190,15 @@ class AlphaFundamentalFetcher:
                 continue
             
             try:
+                latest_q = data.get("LatestQuarter")
+                days_since_q = None
+                if latest_q:
+                    try:
+                        q_date = datetime.strptime(latest_q, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                        days_since_q = (datetime.now(timezone.utc) - q_date).days
+                    except (ValueError, TypeError):
+                        pass
+
                 fundamentals = CompanyFundamentals(
                     symbol=symbol, # 强制使用系统统一 symbol
                     name=data.get("Name"),
@@ -212,8 +222,8 @@ class AlphaFundamentalFetcher:
                     country=data.get("Country"),
                     currency=data.get("Currency"),
                     fiscal_year_end=data.get("FiscalYearEnd"),
-                    latest_quarter=data.get("LatestQuarter"),
-                    # last_updated 已由 dataclass 默认工厂函数处理为 UTC
+                    latest_quarter=latest_q,
+                    days_since_latest_quarter=days_since_q,
                 )
                 self._save_to_cache(fundamentals, symbol)
                 return True

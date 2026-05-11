@@ -102,4 +102,5 @@ data_sources:
   # AI Debate Results
   ai_analysis:
     output_dir: data/debate
-    max_file_age: 604800  # LLM searches analysis results within 7 days
+    max_file_age: 604800            # LLM searches analysis results within 7 days (API展示用)
+    inheritance_max_age: 3600       # 父层报告鲜度阈值，超过则不继承 (跨层记忆传递专用，1h)
