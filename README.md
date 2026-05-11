@@ -32,7 +32,7 @@ Three debaters hold fixed investment philosophies and must complete a structured
 
 A fourth agent sits **outside** the debate:
 
-- 📜 **Chronicler** — Pure report synthesizer. Holds no market view and never touches raw data. Once the debate concludes, writes the final report from the argument chains alone. *Originally the Chronicler also moderated rounds and managed memory, but in practice an AI moderator turned out to be a compromiser — debaters quickly noticed and started phoning it in, expecting the moderator to call it quits. The moderator role was therefore stripped out (see Stage 2 below) and memory is now passed mechanically, leaving the Chronicler with one job only.*
+- 📜 **Chronicler** — Pure report synthesizer. Holds no market view and never touches raw data. Once the debate concludes, writes the final report from the argument chains alone. *Originally the Chronicler also moderated rounds and managed memory. But the same underlying AI tendency — wanting to smooth over disagreement — shows up differently in different seats: in **debaters** it leans on mutual concession (the constitution's information-increment / Bayesian-update rules push back against that); in the **moderator seat**, the specific model I had wired in (a Qwen variant) leaned hard the other way — **declaring the debate done the moment the three positions looked roughly aligned**, often after only one or two rounds. Debaters quickly read the room and started phoning it in, since the moderator was going to wrap things up shortly anyway. (A Claude-based variant of the moderator did somewhat better in side experiments, but not by enough to justify keeping AI in the chair.) The moderator role was therefore stripped out (see Stage 2 below), memory passing was demoted to deterministic code, and the Chronicler is left with one job only.*
 
 **Key design insight:** The mirror of an optimist is not a pessimist, but a profit-taker. Reaper doesn't ask "will it drop?" but "is it still worth holding?"
 
@@ -417,7 +417,7 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 
 辩论桌之外还有第四位 Agent：
 
-- 📜 **Chronicler**（史官）— 纯报告综合者。不持有任何市场立场，也不接触原始数据。辩论结束后，仅凭三方论证链撰写最终报告。*史官最初还兼任秩序维护和记忆管理，但实跑发现：让 AI 当裁判，它本质上是个和稀泥的角色——辩论者一旦看穿这点，就开始敷衍，等着裁判一两个回合就宣告结束。所以裁判职责被剥离（见下面 Stage 2），记忆改为机械传递，史官只剩"写报告"这一项。*
+- 📜 **Chronicler**（史官）— 纯报告综合者。不持有任何市场立场，也不接触原始数据。辩论结束后，仅凭三方论证链撰写最终报告。*史官最初还兼任秩序维护和记忆管理。但同一种 AI"和稀泥"的底层倾向，落到不同位置上表现不一样：落到**辩论者**身上，是互相妥协（这一面靠辩论宪法的"信息增量 / 贝叶斯更新"规则去对抗）；落到**裁判位**上，我手上挂的那套模型（一款 Qwen 变体）则反过来表现为——**只要三方立场看起来差不多，就急着判定辩论结束**，往往一两回合就收尾。辩论者很快读懂了空气，开始敷衍——反正裁判马上就要把它结束掉。（Claude 系的同款裁判侧测下来要好一些，但远没好到足以让我把 AI 留在裁判位上。）于是裁判职责被剥离（见下面 Stage 2），记忆传递降级为代码确定性逻辑，史官只剩"写报告"这一项。*
 
 **关键设计洞察：** 乐观者的镜像不是悲观者，而是止盈者。Reaper 问的不是"会不会跌"，而是"还值不值得拿"。
 
