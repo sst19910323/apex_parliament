@@ -207,14 +207,18 @@ def run_fundamentals_job(scheduler: BlockingScheduler, configs: Dict, calendar: 
     
     cfg = configs['data_sources'].get('alpha_fundamentals', {})
     symbols_cfg = configs['symbols'].get('analysis_targets', {})
-    
+    contracts_def = configs['symbols'].get('symbol_contracts', {})
+
+    def _is_runnable(sym: str) -> bool:
+        return contracts_def.get(sym, {}).get('runnable', True) is not False
+
     now_et = datetime.now(SCHEDULER_TIMEZONE)
     if not is_trading_day(calendar, now_et):
         logger.info(f"{job_name}: Skipped (Not a trading day).")
     else:
         try:
             fetcher = AlphaFundamentalFetcher()
-            stock_list = [s.upper() for s in symbols_cfg.get('stocks', [])]
+            stock_list = [s.upper() for s in symbols_cfg.get('stocks', []) if _is_runnable(s.upper())]
             random.shuffle(stock_list)
             
             for symbol in stock_list:
@@ -237,8 +241,12 @@ def run_finnhub_news_job(scheduler: BlockingScheduler, configs: Dict, calendar: 
 
     cfg = configs['data_sources'].get('news', {})
     symbols_cfg = configs['symbols'].get('analysis_targets', {})
-    
-    if not cfg or not symbols_cfg: 
+    contracts_def = configs['symbols'].get('symbol_contracts', {})
+
+    def _is_runnable(sym: str) -> bool:
+        return contracts_def.get(sym, {}).get('runnable', True) is not False
+
+    if not cfg or not symbols_cfg:
         logger.warning(f"{job_name}: Missing config.")
         return
 
@@ -254,9 +262,9 @@ def run_finnhub_news_job(scheduler: BlockingScheduler, configs: Dict, calendar: 
 
             fetcher1 = FinnhubNewsFetcher(api_key=key1, config_path=str(CONFIG_SOURCES_PATH))
             fetcher2 = FinnhubNewsFetcher(api_key=key2, config_path=str(CONFIG_SOURCES_PATH))
-            
-            stock_list = [s.upper() for s in symbols_cfg.get('stocks', [])]
-            etf_list = [s.upper() for s in symbols_cfg.get('etfs', [])]
+
+            stock_list = [s.upper() for s in symbols_cfg.get('stocks', []) if _is_runnable(s.upper())]
+            etf_list = [s.upper() for s in symbols_cfg.get('etfs', []) if _is_runnable(s.upper())]
             
             tasks = stock_list + etf_list + ['GENERAL']
             random.shuffle(tasks)

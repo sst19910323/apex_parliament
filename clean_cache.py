@@ -1,6 +1,7 @@
 import argparse
 import time
 import re
+import yaml
 from pathlib import Path
 from datetime import datetime
 
@@ -20,6 +21,37 @@ TARGET_DIRS_RELATIVE = [
 # 兼容旧版: _1762871926 (10位数字)
 # 兼容新版: _20251128T171645Z (ISO 格式)
 TIMESTAMP_RE = re.compile(r"_(\d{10}|\d{8}T\d{6}Z)$")
+
+
+# -----------------------------------------------------------------
+# 辅助: 从 symbols.yaml 解析出 manual_only 的标的集合
+# -----------------------------------------------------------------
+
+def load_manual_only_symbols() -> set:
+    """读 symbols.yaml, 返回 runnable=false 的 symbol 集合 (大写).
+    这些是 Claude Code 手动分析的标的, 默认保护它们的缓存不被清."""
+    cfg_path = PROJECT_ROOT / "config" / "symbols.yaml"
+    if not cfg_path.exists():
+        return set()
+    try:
+        cfg = yaml.safe_load(cfg_path.read_text(encoding='utf-8')) or {}
+    except Exception as e:
+        print(f"[警告] 读 symbols.yaml 失败: {e}, 默认 manual_only 集合为空")
+        return set()
+    manual = set()
+    for sym, info in (cfg.get('symbol_contracts') or {}).items():
+        if isinstance(info, dict) and info.get('runnable') is False:
+            manual.add(str(sym).upper())
+    return manual
+
+
+def path_belongs_to_manual_symbol(file_path: Path, manual_set: set) -> str:
+    """若文件路径的任一目录段匹配 manual symbol, 返回该 symbol; 否则返回空字符串.
+    例: data/news/RHM/RHM_news_xxx.json 命中 RHM."""
+    for part in file_path.parts:
+        if part.upper() in manual_set:
+            return part.upper()
+    return ""
 
 # -----------------------------------------------------------------
 # 主逻辑
@@ -41,7 +73,21 @@ def main():
         action="store_true",
         help="!!! 危险 !!! 实际执行删除操作。\n(默认: 'Dry Run'，只打印不删除)"
     )
+    parser.add_argument(
+        "--include-manual",
+        action="store_true",
+        help="同时清理 manual_only 标的 (RHM/7974/7011 等 runnable=false 的) 的缓存。\n"
+             "(默认: 跳过, 保护 Claude Code 手动分析的数据不被清掉)"
+    )
     args = parser.parse_args()
+
+    # --- 1.5 加载 manual_only 集合用于过滤 ---
+    manual_symbols = set() if args.include_manual else load_manual_only_symbols()
+    if manual_symbols:
+        print(f"[保护] 跳过 manual_only 标的的缓存: {sorted(manual_symbols)}")
+        print(f"        (要也清, 加 --include-manual 参数)")
+    elif args.include_manual:
+        print("[模式] --include-manual: 包含 manual_only 标的, 全部清理")
 
     # --- 1. 计算时间 ---
     NOW_TS = time.time()
@@ -68,6 +114,7 @@ def main():
     total_scanned = 0
     total_found_expired = 0
     total_deleted = 0
+    total_skipped_manual = 0
 
     # --- 3. 扫描和清理 ---
     for target_dir in target_dirs_absolute:
@@ -84,10 +131,17 @@ def main():
 
         for file_path in target_dir.rglob('*'):
             if not file_path.is_file():
-                continue 
+                continue
 
             total_scanned += 1
-            
+
+            # manual_only 标的的缓存保护 (除非用户显式 --include-manual)
+            if manual_symbols:
+                hit_sym = path_belongs_to_manual_symbol(file_path, manual_symbols)
+                if hit_sym:
+                    total_skipped_manual += 1
+                    continue
+
             # 从文件名中提取时间戳
             stem = file_path.stem
             match = TIMESTAMP_RE.search(stem)
@@ -128,6 +182,8 @@ def main():
     print("\n" + "="*60)
     print("--- 清理完成 ---")
     print(f"总共扫描文件数: {total_scanned}")
+    if manual_symbols:
+        print(f"manual_only 跳过文件数: {total_skipped_manual} (--include-manual 可一并清)")
     print(f"发现过期文件数: {total_found_expired}")
     print(f"实际删除文件数: {total_deleted}")
     print("="*60)

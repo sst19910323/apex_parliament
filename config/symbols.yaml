@@ -15,6 +15,7 @@ analysis_targets:
     - AVGO     # Broadcom Inc. (Semiconductors)
     - MU       # Micron Technology (HBM/Memory)
     - INTC     # Intel Corporation (老牌龙头/CHIPS法案/转型故事)
+    - TSM      # Taiwan Semiconductor ADR (台积电美股, 半导体代工龙头)
     - TSLA     # Tesla Inc.
     - META     # Meta Platforms Inc.
     - ADBE     # Adobe Inc. (SaaS/AI App)
@@ -28,7 +29,10 @@ analysis_targets:
     - VST      # Vistra Corp (Utilities/Nuclear)
     - PLTR     # Palantir Technologies (AI/Defense/Government Software)
     - MP       # MP Materials (美国稀土 pure-play / 战略矿产)
-  
+    - RHM      # Rheinmetall AG (莱茵金属, 德国国防, runnable=false → Claude Code 手动)
+    - "7974"   # Nintendo (任天堂, 东京 7974, runnable=false → Claude Code 手动)
+    - "7011"   # Mitsubishi Heavy Industries (三菱重工, 东京 7011, runnable=false → Claude Code 手动)
+
   # ETFs - require market data + news
   # 宽基 + 板块 ETF 全部独立分析（板块 ETF 既是分析对象，也是个股的 sector 上下文）
   etfs:
@@ -51,6 +55,28 @@ analysis_targets:
     - SPY      # S&P 500 代理 (与 etfs 复用，单独分析 + 基准双重身份)
     - QQQ      # Nasdaq-100 代理 (同上)
     - DIA      # Dow Jones 代理 (仅作基准，不单独分析)
+
+  # GENERAL 系列 - 宏观大盘分析虚拟标的, 不进 IBKR fetch (sec_type=IND 占位)
+  # 报告落在 data/debate/{SYMBOL}/, 前端 sidebar 按 region 分大区显示
+  generals:
+    - GENERAL          # 美国宏观 (默认; 历史无后缀)
+    - GENERAL_EU       # 欧洲宏观 (Eurozone + UK)
+    - GENERAL_JP       # 日本宏观
+
+# 自动运行开关:
+#   每个 symbol_contracts 条目可选字段 `runnable: true/false`, 缺省 = true
+#   horizon_sentinel + data_scheduler 只跑 runnable != false 的标的
+#   runnable: false → 自动调度跳过, 但前端依然展示, 由 Claude Code 引导手动分析后
+#                     写入 data/debate/{SYMBOL}/, /api/symbol-groups 输出 manual_only=true
+#
+# 分析大区:
+#   每个 symbol_contracts 条目可选字段 `region: US|EU|JP`, 缺省 = US
+#   决定 GENERAL 宏观分析和情绪/经济基本面取哪份数据 (隔壁 Claude Code 工程读用)
+#   命名约定: 数据文件 US 不带后缀, EU 带 _eu, JP 带 _jp
+#     如 data/fear_greed/fear_greed_latest_*.json (US)
+#        data/fear_greed/fear_greed_eu_latest_*.json (EU, 含 eurozone + uk 子块)
+#        data/economic/economic_indicators_jp_*.json (JP)
+#   前端主页改版后按 region 一级分组 → 板块二级 → 个股三级
 
   # Indices - 已废弃，改用 ETF (SPY/QQQ/DIA)
   # indices:
@@ -179,6 +205,16 @@ symbol_contracts:
     currency: USD
     primary_exchange: NASDAQ
     description: "Intel Corporation (老牌龙头/CHIPS法案/转型故事)"
+    benchmark: QQQ
+    sector: SMH
+
+  TSM:
+    symbol: TSM
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NYSE
+    description: "Taiwan Semiconductor Mfg ADR (台积电美股, 全球晶圆代工霸主, 客户 AAPL/NVDA/AMD/QCOM)"
     benchmark: QQQ
     sector: SMH
 
@@ -314,6 +350,55 @@ symbol_contracts:
     benchmark: SPY
     sector: REMX
 
+  # 莱茵金属 (manual_only): IBKR 没欧股订阅, Claude Code 引导手动分析
+  RHM:
+    symbol: RHM
+    sec_type: STK
+    exchange: IBIS              # XETRA on IBKR (placeholder, 不会被 fetch)
+    currency: EUR
+    primary_exchange: IBIS
+    description: "Rheinmetall AG (莱茵金属, 德国国防巨头)"
+    benchmark: SPY              # 大盘对照 (即使是欧股, 仍参考美股 risk-on/off regime)
+    sector: ITA                 # 国防航天组 (跟 PLTR 一起展示)
+    region: EU                  # 欧洲大区 (Eurozone + UK 合一套基本面)
+    runnable: false             # 自动调度跳过, 仅前端展示
+
+  # ── 日股 (manual_only): 跟隔壁 apex_codex 工程对齐, benchmark 用 N225 (Nikkei 225) ──
+  # 任天堂 (manual_only): IBKR 没日股订阅, Claude Code 引导手动分析
+  "7974":
+    symbol: "7974"
+    sec_type: STK
+    exchange: SMART             # IBKR 通用路由 (跟隔壁 apex_codex 对齐)
+    currency: JPY
+    primary_exchange: TSEJ      # Tokyo Stock Exchange Japan
+    description: "Nintendo Co., Ltd. (任天堂, 东证 7974, 游戏)"
+    benchmark: N225             # 日股本土基准
+    region: JP                  # 日本大区
+    runnable: false             # 自动调度跳过, 仅前端展示
+
+  # 三菱重工 (manual_only)
+  "7011":
+    symbol: "7011"
+    sec_type: STK
+    exchange: SMART
+    currency: JPY
+    primary_exchange: TSEJ
+    description: "Mitsubishi Heavy Industries (三菱重工, 东证 7011, 国防/航天/能源装备)"
+    benchmark: N225
+    region: JP
+    runnable: false
+
+  # 日经 225 指数 (纯 reference label, 不进 analysis_targets, 不被 horizon 拉取)
+  N225:
+    symbol: N225
+    sec_type: IND
+    exchange: OSE.JPN
+    currency: JPY
+    primary_exchange: OSE.JPN
+    description: "Nikkei 225 Index (日经 225 大盘)"
+    benchmark: null
+    region: JP
+
   # ---------------------------------- ETFs ---------------------------------- #
   # 宽基 ETF：自身就是参照系，benchmark 为 null
   SPY:
@@ -443,6 +528,32 @@ symbol_contracts:
     primary_exchange: ARCA
     description: "SPDR Dow Jones Industrial Average ETF (宏观基准用，不单独分析)"
     benchmark: null
+
+  # ── GENERAL 系列 (宏观分析虚拟标的, 不走 IBKR; sec_type=IND 占位) ──
+  # 报告产出在 data/debate/{SYMBOL}/, 由 horizon_sentinel (US) 或手动 (EU/JP) 生成
+  GENERAL:
+    symbol: GENERAL
+    sec_type: IND
+    description: "美国宏观三镜头 (SPY/QQQ/DIA)"
+    currency: USD
+    region: US
+    runnable: true              # US 由 horizon_sentinel 自动跑
+
+  GENERAL_EU:
+    symbol: GENERAL_EU
+    sec_type: IND
+    description: "欧洲宏观 (Eurozone + UK, 手动 / Claude Code 引导分析)"
+    currency: EUR
+    region: EU
+    runnable: false             # 自动调度跳过, 手动产出
+
+  GENERAL_JP:
+    symbol: GENERAL_JP
+    sec_type: IND
+    description: "日本宏观 (手动 / Claude Code 引导分析)"
+    currency: JPY
+    region: JP
+    runnable: false
 
   # --------------------------------- Indices (已废弃，保留定义备用) --------------------------------- #
   # SPX:

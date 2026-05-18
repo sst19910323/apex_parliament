@@ -48,6 +48,8 @@ A fourth agent sits **outside** the debate:
 
 **Stage 3 — Report & Signatures:** The Chronicler synthesizes the final report with actionable instructions (BUY/SELL/HOLD + position size + entry/stop conditions), strictly within the envelope formed by the three debaters' final stances; Zealot, Reaper, and Fulcrum each attach a signature recording their own final position — users with different risk appetites can reference these.
 
+**Dual outputs — long-term `action` + short-term tactical view.** Every report now carries two parallel views that don't replace each other: `action` / `operation_*` is the integrated strategic-and-tactical optimum (risk/reward over the long horizon plus current entry timing), while `short_term` is a decoupled near-term tactical forecast — `direction` ∈ {up / chop / down}, a `target` price, and `horizon_days` (typically 2–14 trading days, anchored to the next hard catalyst or the dominant technical cycle). Divergence between the two views is itself a valuable signal, not a bug — the Chronicler must explicitly explain in `debate_summary` why "long-run optimum" and "near-term tactical" point opposite ways when they do.
+
 ---
 
 ## 📜 Debate Constitution
@@ -123,6 +125,11 @@ Each decision cycle is fed by the following data sources:
 **Per-symbol macro + sector backdrop.** `symbols.yaml` now tags every stock with its own primary benchmark and sector ETF (e.g. NVDA → QQQ + SMH, JPM → SPY + XLF). When a stock is analyzed, the prompt receives that stock's specific benchmark and sector context — not a generic SPY everywhere. The sector layer was added alongside (XLF / XLV / XLE / XLU / XLP / IGV / ITA / REMX) so the AI can reason "NVDA vs. its semis peers" and "JPM in a risk-off financial regime" instead of just "stock vs. broad market."
 
 **Mechanical memory inheritance + DAG-driven run pool.** Child analyses (an individual stock) now inherit their parent's most recent debate snapshot (the matching sector ETF and the matching benchmark) as compressed context, provided the parent report is within `inheritance_max_age` (default 1h). To make sure that "parent" actually exists when "child" starts, `horizon_sentinel.py` builds a DAG from the `sector` field in `symbols.yaml` and runs the pool top-down: **GENERAL first → sector ETFs and broad-base ETFs → individual stocks (each one waiting for its sector ETF debate to finish)**. LLM concurrency is globally capped (default 8), and IBKR fetches are serialized with ≥1s spacing. Inheritance is on by default. *Earlier the Chronicler was supposed to manage this memory dynamically; after the moderator role was stripped, memory passing was demoted to a deterministic code path to keep behavior predictable.*
+
+**Regional coverage + `runnable` flag.** This project now doubles as the backend for a multi-region dashboard. `symbols.yaml` carries a `region` field per symbol (`US` / `EU` / `JP`) and a `runnable` flag (default `true`):
+
+- `runnable: true` — `horizon_sentinel` and `data_scheduler` schedule it automatically. The full US universe (stocks, ETFs, sector ETFs, `GENERAL`) is in this bucket.
+- `runnable: false` — auto-scheduling skips it, but the frontend still shows the slot. Currently this covers EU equities (e.g. `RHM`), Tokyo-listed JP equities (e.g. `7974`, `7011`), and the regional macro placeholders `GENERAL_EU` / `GENERAL_JP`. IBKR doesn't carry data subscriptions for those markets on this account, so a companion Claude-Code-driven project runs them on an ad-hoc cadence and writes the resulting debate reports back to the same `data/debate/{SYMBOL}/` directory tree, which the frontend reads.
 
 ---
 
@@ -433,6 +440,8 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 
 **Stage 3 — 报告与签名：** Chronicler 综合三方论证链，在三方最终立场构成的包络区间内撰写最终报告，输出可执行指令（BUY/SELL/HOLD + 仓位大小 + 入场/止损条件）；Zealot、Reaper、Fulcrum 各自附签自己最终轮的立场——风险偏好不同的使用者可以自行参考。
 
+**双产品输出——长期 `action` + 短期局势预判。** 每份报告现在并行承载两套 view，互不替代：`action` / `operation_*` 是综合战略战术最优（长期风险收益 + 当下买卖时机的合力），而 `short_term` 是一个与长期估值解耦的短线方向预判——`direction` ∈ {上行/震荡/下行}，附 `target` 目标价 和 `horizon_days`（典型 2–14 交易日，按下一个硬事件或主导的技术周期锚定）。两套 view 出现分歧本身就是高价值信号，不是 bug——Chronicler 必须在 `debate_summary` 里显式说清楚"为什么综合最优 vs 短线最优会指向相反方向"。
+
 ---
 
 ## 📜 辩论宪法
@@ -508,6 +517,11 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 **逐标的的大盘 + 板块背景。** `symbols.yaml` 现在给每只个股标注它自己的主基准和所属板块 ETF（例如 NVDA → QQQ + SMH，JPM → SPY + XLF）。分析某只个股时，提示词里塞的就是这只股票对应的基准和板块背景，而不是千篇一律的 SPY。同时新增了板块层（XLF / XLV / XLE / XLU / XLP / IGV / ITA / REMX），AI 可以推理"NVDA 在半导体同行里强弱如何"或"JPM 处于金融板块 risk-off 之中"，而不是只有"个股 vs 大盘"。
 
 **机械化的记忆传递 + DAG 调度的运行池。** 子层分析（个股）现在会自动继承父层（对应板块 ETF + 对应基准）最近一次辩论快照作为压缩上下文，前提是父层报告在 `inheritance_max_age`（默认 1h）以内。为了保证开始辩论时"父层"确实已经存在，`horizon_sentinel.py` 会按 `symbols.yaml` 的 `sector` 字段构 DAG，自顶向下跑 pool：**先 GENERAL → 再板块 ETF 和宽基 ETF → 再个股（每只个股等自己所属的板块 ETF 辩论完成才入池）**。LLM 并发全局受 Semaphore 限制（默认 8），IBKR 拉数据强制串行 + 每次间隔 ≥1s。默认开启继承。*原本这部分记忆是想让史官动态管理的；裁判职责剥离之后，记忆传递降级为代码确定性逻辑，行为可预测。*
+
+**多大区覆盖 + `runnable` 开关。** 这个项目现在还兼任一个多大区看板的后端。`symbols.yaml` 每条记录都带 `region` 字段（`US` / `EU` / `JP`）和 `runnable` 开关（默认 `true`）：
+
+- `runnable: true` —— 由 `horizon_sentinel` 和 `data_scheduler` 自动调度。整个美股版图（个股、ETF、板块 ETF、`GENERAL`）都在这一桶里。
+- `runnable: false` —— 自动调度直接跳过，但前端依然展示这个槽。目前覆盖欧股（如 `RHM`）、东证日股（如 `7974`、`7011`），以及两个大区宏观占位 `GENERAL_EU` / `GENERAL_JP`。这账号下 IBKR 没订阅这两个市场的数据，所以由一个 Claude-Code 驱动的伴生项目不定期手动跑，把辩论报告写回到同一棵 `data/debate/{SYMBOL}/` 目录里，前端从这里读取。
 
 ---
 

@@ -753,11 +753,22 @@ async def run_analysis_phase(symbols_map: Dict, data_config: Dict, symbols_confi
     assembler = ContextAssembler(data_config, symbols_config)
 
     # 构建标的清单 (GENERAL 始终为 root)
+    # runnable=false 的标的 (Claude Code 手动分析专用) 自动跳过
+    contracts_def = symbols_config.get('symbol_contracts', {})
+    def _is_runnable(sym: str) -> bool:
+        return contracts_def.get(sym, {}).get('runnable', True) is not False
+
     all_targets: List[Tuple[str, str]] = [("GENERAL", "general")]
     for s in symbols_map["etfs"]:
-        all_targets.append((s, "etf"))
+        if _is_runnable(s):
+            all_targets.append((s, "etf"))
+        else:
+            logging.info(f"⏭️ [Skip Auto] {s}: runnable=false, manual-only")
     for s in symbols_map["stocks"]:
-        all_targets.append((s, "stock"))
+        if _is_runnable(s):
+            all_targets.append((s, "stock"))
+        else:
+            logging.info(f"⏭️ [Skip Auto] {s}: runnable=false, manual-only")
 
     target_names = [s for s, _ in all_targets]
     deps = build_dependency_graph(symbols_config, target_names)

@@ -19,6 +19,13 @@ logger = logging.getLogger(__name__)
 
 # ── 默认值 ──
 
+DEFAULT_SHORT_TERM = {
+    "direction": "震荡",
+    "target": "N/A",
+    "horizon_days": 5,
+    "rationale": "",
+}
+
 DEFAULT_RESPONSE = {
     "debate_intensity": "MEDIUM",
     "action": 50,
@@ -29,6 +36,7 @@ DEFAULT_RESPONSE = {
     "preliminary_mentality": [
         {"name": "wait_and_see", "probability": 1.0}
     ],
+    "short_term": dict(DEFAULT_SHORT_TERM),
     "summary_statement": "[解析失败]",
     "analysis_text": "[解析失败]",
 }
@@ -130,7 +138,12 @@ def _parse_xml_strict(xml_str: str, role: str) -> Optional[Dict[str, Any]]:
                 })
         if items:
             result["preliminary_mentality"] = items
-        
+
+        # short_term 子标签
+        st_elem = root.find("short_term")
+        if st_elem is not None:
+            result["short_term"] = _extract_short_term(st_elem)
+
         if not result:
             return None
             
@@ -201,12 +214,42 @@ def _parse_regex_fallback(text: str, role: str) -> Optional[Dict[str, Any]]:
         ]
         extracted_count += 1
     
+    # short_term: 整块捕获再分子项提取
+    st_match = re.search(r'<short_term>(.*?)</short_term>', text, re.DOTALL)
+    if st_match:
+        st_text = st_match.group(1)
+        st = dict(DEFAULT_SHORT_TERM)
+        for field in ["direction", "target", "horizon_days"]:
+            m = re.search(rf'<{field}>\s*(.*?)\s*</{field}>', st_text, re.DOTALL)
+            if m:
+                st[field] = m.group(1).strip()
+        # rationale 可能带 CDATA
+        cdata_m = re.search(r'<rationale>\s*<!\[CDATA\[(.*?)\]\]>\s*</rationale>', st_text, re.DOTALL)
+        if cdata_m:
+            st["rationale"] = cdata_m.group(1).strip()
+        else:
+            plain_m = re.search(r'<rationale>\s*(.*?)\s*</rationale>', st_text, re.DOTALL)
+            if plain_m:
+                st["rationale"] = plain_m.group(1).strip()
+        result["short_term"] = st
+        extracted_count += 1
+
     if extracted_count >= 2:
         logger.info(f"[XMLParser][{role}] Regex fallback extracted {extracted_count} fields.")
         return result
-    
+
     logger.warning(f"[XMLParser][{role}] Regex fallback only got {extracted_count} fields, insufficient.")
     return None
+
+
+def _extract_short_term(elem) -> Dict[str, Any]:
+    """从<short_term>元素提取结构化dict（strict XML路径用）。"""
+    st = dict(DEFAULT_SHORT_TERM)
+    for field in ["direction", "target", "horizon_days", "rationale"]:
+        child = elem.find(field)
+        if child is not None and child.text:
+            st[field] = child.text.strip()
+    return st
 
 
 # ── 校验 & 修正 ──
@@ -214,6 +257,7 @@ def _parse_regex_fallback(text: str, role: str) -> Optional[Dict[str, Any]]:
 VALID_INTENSITIES = {"LOW", "MEDIUM", "HIGH"}
 VALID_OP_TYPES = {"MARKET_ENTRY", "LIMIT_ENTRY", "HOLD_NEUTRAL", "TRIM_POSITION", "LIQUIDATE_NOW"}
 VALID_VOLUMES = {"PILOT_SIZE", "STANDARD_SIZE", "AGGRESSIVE_SIZE", "N/A"}
+VALID_DIRECTIONS = {"上行", "震荡", "下行"}
 VALID_MENTALITIES = {
     "buy_the_dip", "fomo_buy", "profit_taking", "cut_losses_aggressively",
     "cut_losses_reluctantly", "hold_and_ride_profit", "trapped_hold",
@@ -284,6 +328,34 @@ def _validate_and_fix(data: Dict[str, Any], role: str) -> Dict[str, Any]:
             data["wants_continue"] = True
     else:
         data["wants_continue"] = True  # 字段缺失默认 True
+
+    # short_term 校验
+    st = data.get("short_term")
+    if not isinstance(st, dict):
+        st = dict(DEFAULT_SHORT_TERM)
+    else:
+        for k, v in DEFAULT_SHORT_TERM.items():
+            st.setdefault(k, v)
+        # direction: 容错——含"上"或"涨"归"上行"，含"下"或"跌"归"下行"，其余"震荡"
+        direction = str(st.get("direction", "")).strip()
+        if direction in VALID_DIRECTIONS:
+            pass
+        elif any(ch in direction for ch in ("上", "涨", "升", "多")):
+            direction = "上行"
+        elif any(ch in direction for ch in ("下", "跌", "降", "空")):
+            direction = "下行"
+        else:
+            direction = "震荡"
+        st["direction"] = direction
+        # horizon_days int, 限制 1-90（>90 没意义；<1 系统不擅长）
+        horizon_int = _safe_int(st.get("horizon_days", 5), 5)
+        st["horizon_days"] = max(1, min(90, horizon_int))
+        # target 保持字符串（兼容 GENERAL 的 "SPY=X; QQQ=Y; DIA=Z"）
+        val = st.get("target")
+        st["target"] = "N/A" if val is None or str(val).strip() == "" else str(val).strip()
+        # rationale 字符串
+        st["rationale"] = str(st.get("rationale", "") or "").strip()
+    data["short_term"] = st
 
     return data
 

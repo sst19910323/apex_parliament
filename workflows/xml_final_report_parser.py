@@ -16,6 +16,15 @@ logger = logging.getLogger(__name__)
 
 # ── 默认值 ──
 
+DEFAULT_SHORT_TERM = {
+    "direction": "震荡",
+    "target": "N/A",
+    "horizon_days": 5,
+    "rationale": "",
+}
+
+VALID_DIRECTIONS = {"上行", "震荡", "下行"}
+
 DEFAULT_FINAL_REPORT = {
     "final_report": {
         "debate_summary": "[解析失败]",
@@ -31,6 +40,7 @@ DEFAULT_FINAL_REPORT = {
         "operation_type": "HOLD_NEUTRAL",
         "operation_target": "N/A",
         "operation_volume": "N/A",
+        "short_term": dict(DEFAULT_SHORT_TERM),
         "dissent": {
             "zealot_final_action": 50, "zealot_reservation": "N/A",
             "reaper_final_action": 50, "reaper_reservation": "N/A",
@@ -191,7 +201,15 @@ def _parse_final_strict(xml_str: str) -> Optional[Dict]:
         rt_elem = rm_elem.find("review_triggers")
         rm["review_triggers"] = _get_all_texts(rt_elem, "trigger") if rt_elem is not None else []
     r["risk_management"] = rm if rm else DEFAULT_FINAL_REPORT["final_report"]["risk_management"]
-    
+
+    # short_term
+    st_elem = root.find("short_term")
+    if st_elem is not None:
+        st = dict(DEFAULT_SHORT_TERM)
+        for field in ["direction", "target", "horizon_days", "rationale"]:
+            st[field] = _get_text(st_elem, field, st[field])
+        r["short_term"] = st
+
     # dissent (three-way: Zealot / Reaper / Fulcrum)
     dis_elem = root.find("dissent")
     dissent = {}
@@ -264,7 +282,26 @@ def _parse_final_regex(text: str) -> Optional[Dict]:
     
     # reasoning - 简化提取drivers和risks
     r["reasoning"] = {"key_drivers": [], "risks": []}
-    
+
+    # short_term 块捕获
+    st_match = re.search(r'<short_term>(.*?)</short_term>', text, re.DOTALL)
+    if st_match:
+        st_text = st_match.group(1)
+        st = dict(DEFAULT_SHORT_TERM)
+        for field in ["direction", "target", "horizon_days"]:
+            m = re.search(rf'<{field}>\s*(.*?)\s*</{field}>', st_text, re.DOTALL)
+            if m:
+                st[field] = m.group(1).strip()
+        cdata_m = re.search(r'<rationale>\s*<!\[CDATA\[(.*?)\]\]>\s*</rationale>', st_text, re.DOTALL)
+        if cdata_m:
+            st["rationale"] = cdata_m.group(1).strip()
+        else:
+            plain_m = re.search(r'<rationale>\s*(.*?)\s*</rationale>', st_text, re.DOTALL)
+            if plain_m:
+                st["rationale"] = plain_m.group(1).strip()
+        r["short_term"] = st
+        count += 1
+
     if count >= 2:
         logger.info(f"[FinalReportParser] Regex fallback extracted {count} fields.")
         return {"final_report": r}
@@ -308,6 +345,30 @@ def _validate_final_report(data: Dict):
     dissent["reaper_final_action"] = _safe_int(dissent.get("reaper_final_action", 50))
     dissent["fulcrum_final_action"] = _safe_int(dissent.get("fulcrum_final_action", 50))
     fr["dissent"] = dissent
+
+    # short_term 校验
+    st = fr.get("short_term")
+    if not isinstance(st, dict):
+        st = dict(DEFAULT_SHORT_TERM)
+    else:
+        for k, v in DEFAULT_SHORT_TERM.items():
+            st.setdefault(k, v)
+        direction = str(st.get("direction", "")).strip()
+        if direction in VALID_DIRECTIONS:
+            pass
+        elif any(ch in direction for ch in ("上", "涨", "升", "多")):
+            direction = "上行"
+        elif any(ch in direction for ch in ("下", "跌", "降", "空")):
+            direction = "下行"
+        else:
+            direction = "震荡"
+        st["direction"] = direction
+        horizon_int = _safe_int(st.get("horizon_days", 5), 5)
+        st["horizon_days"] = max(1, min(90, horizon_int))
+        val = st.get("target")
+        st["target"] = "N/A" if val is None or str(val).strip() == "" else str(val).strip()
+        st["rationale"] = str(st.get("rationale", "") or "").strip()
+    fr["short_term"] = st
 
     data["final_report"] = fr
 

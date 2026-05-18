@@ -21,6 +21,12 @@ init_output: |
       <item name="[心态名]" probability="[0-1小数]"/>
       <item name="[心态名]" probability="[0-1小数]"/>
     </mentality>
+    <short_term>
+      <direction>[上行/震荡/下行 三选一]</direction>
+      <target>[预期到达价，数字]</target>
+      <horizon_days>[交易日整数]</horizon_days>
+      <rationale><![CDATA[一句话核心理由]]></rationale>
+    </short_term>
     <summary_statement><![CDATA[一句话核心观点]]></summary_statement>
     <analysis_text><![CDATA[你的独立分析正文]]></analysis_text>
   </response>
@@ -57,6 +63,11 @@ init_output: |
                      bottom_fishing / short_squeeze_chase / sell_on_strength /
                      hedge_position / average_down / average_up / all_in /
                      rotate_sector / deleveraging / contrarian_bet
+  - **short_term**: 短线（数日级）战术判断，与 action 正交补充。**详见宪法第 11 节**。
+      * direction: 上行 / 震荡 / 下行（三选一）
+      * target: 数字；GENERAL 用 `SPY=X; QQQ=Y; DIA=Z`
+      * horizon_days: 整数交易日数（典型 2-14）
+      * rationale: 用 CDATA 包裹，一句话核心理由
   - **summary_statement**: 用CDATA包裹，一句话核心观点
   - **analysis_text**: 用CDATA包裹，你的独立分析和初始方案。这是第一轮，没有对方观点需要回应。
 
@@ -76,6 +87,12 @@ debate_output: |
       <item name="[心态名]" probability="[0-1小数]"/>
       <item name="[心态名]" probability="[0-1小数]"/>
     </mentality>
+    <short_term>
+      <direction>[上行/震荡/下行 三选一]</direction>
+      <target>[预期到达价，数字]</target>
+      <horizon_days>[交易日整数]</horizon_days>
+      <rationale><![CDATA[一句话核心理由]]></rationale>
+    </short_term>
     <summary_statement><![CDATA[一句话核心观点]]></summary_statement>
     <analysis_text><![CDATA[你的分析正文]]></analysis_text>
   </response>
@@ -112,6 +129,11 @@ debate_output: |
                      bottom_fishing / short_squeeze_chase / sell_on_strength /
                      hedge_position / average_down / average_up / all_in /
                      rotate_sector / deleveraging / contrarian_bet
+  - **short_term**: 短线（数日级）战术判断，与 action 正交补充。**详见宪法第 11 节**。
+      * direction: 上行 / 震荡 / 下行（三选一）
+      * target: 数字；GENERAL 用 `SPY=X; QQQ=Y; DIA=Z`
+      * horizon_days: 整数交易日数（典型 2-14）
+      * rationale: 用 CDATA 包裹，一句话核心理由
   - **summary_statement**: 用CDATA包裹，一句话核心观点
   - **analysis_text**: 用CDATA包裹，辩论正文。优先针对当前争议点深入讨论，可以部分认同对方、
     可以反驳、可以更新自己的观点。只有陷入僵局才开辟新战场。
