@@ -16,6 +16,7 @@ analysis_targets:
     - MU       # Micron Technology (HBM/Memory)
     - INTC     # Intel Corporation (老牌龙头/CHIPS法案/转型故事)
     - TSM      # Taiwan Semiconductor ADR (台积电美股, 半导体代工龙头)
+    - ASML     # ASML Holding NV ADR (阿斯麦, EUV 光刻机独家, 荷兰)
     - TSLA     # Tesla Inc.
     - META     # Meta Platforms Inc.
     - ADBE     # Adobe Inc. (SaaS/AI App)
@@ -30,8 +31,13 @@ analysis_targets:
     - PLTR     # Palantir Technologies (AI/Defense/Government Software)
     - MP       # MP Materials (美国稀土 pure-play / 战略矿产)
     - RHM      # Rheinmetall AG (莱茵金属, 德国国防, runnable=false → Claude Code 手动)
+    - BESI     # BE Semiconductor (荷兰半导体先进封装, runnable=false → Claude Code 手动)
+    - HAG      # Hensoldt (德国国防电子, runnable=false → Claude Code 手动)
     - "7974"   # Nintendo (任天堂, 东京 7974, runnable=false → Claude Code 手动)
     - "7011"   # Mitsubishi Heavy Industries (三菱重工, 东京 7011, runnable=false → Claude Code 手动)
+    - "4063"   # 信越化学 (日本硅晶圆, runnable=false → Claude Code 手动)
+    - "7741"   # HOYA (日本 EUV 光罩基板, runnable=false → Claude Code 手动)
+    - "2802"   # 味之素 (日本 ABF 芯片基板, runnable=false → Claude Code 手动)
 
   # ETFs - require market data + news
   # 宽基 + 板块 ETF 全部独立分析（板块 ETF 既是分析对象，也是个股的 sector 上下文）
@@ -218,6 +224,17 @@ symbol_contracts:
     benchmark: QQQ
     sector: SMH
 
+  ASML:
+    symbol: ASML
+    sec_type: STK
+    exchange: SMART
+    currency: USD
+    primary_exchange: NASDAQ
+    description: "ASML Holding NV ADR (阿斯麦, 全球 EUV 光刻机独家供应商, 荷兰)"
+    benchmark: QQQ
+    sector: SMH
+    # 跟 TSM 一致: NASDAQ-listed ADR, 完全走美股管道; 不打 region: EU 避免误导
+
   TSLA:
     symbol: TSLA
     sec_type: STK
@@ -350,18 +367,41 @@ symbol_contracts:
     benchmark: SPY
     sector: REMX
 
-  # 莱茵金属 (manual_only): IBKR 没欧股订阅, Claude Code 引导手动分析
+  # 莱茵金属 (delayed data): SMART 路由 + primary=IBIS, 配合 reqMarketDataType(3) 拿延迟行情
   RHM:
     symbol: RHM
     sec_type: STK
-    exchange: IBIS              # XETRA on IBKR (placeholder, 不会被 fetch)
+    exchange: SMART             # SMART 路由 + primary=IBIS, 配合 reqMarketDataType(3) 拿 delayed
     currency: EUR
     primary_exchange: IBIS
     description: "Rheinmetall AG (莱茵金属, 德国国防巨头)"
-    benchmark: SPY              # 大盘对照 (即使是欧股, 仍参考美股 risk-on/off regime)
-    sector: ITA                 # 国防航天组 (跟 PLTR 一起展示)
-    region: EU                  # 欧洲大区 (Eurozone + UK 合一套基本面)
+    benchmark: DAX              # 德国本土大盘 (早期版本曾误用 SPY, 已修复)
+    region: EU                  # 欧洲大区, 前端进 EU 大区"其它"组
     runnable: false             # 自动调度跳过, 仅前端展示
+
+  # BE Semiconductor (荷兰, 半导体先进封装 hybrid bonding 龙头)
+  BESI:
+    symbol: BESI
+    sec_type: STK
+    exchange: SMART
+    currency: EUR
+    primary_exchange: AEB        # Euronext Amsterdam
+    description: "BE Semiconductor Industries (荷兰, 半导体先进封装 hybrid bonding 龙头)"
+    benchmark: AEX               # 荷兰本土大盘
+    region: EU                   # EU 大区"其它"组
+    runnable: false
+
+  # Hensoldt (德国国防电子, 雷达 / 光电)
+  HAG:
+    symbol: HAG
+    sec_type: STK
+    exchange: SMART
+    currency: EUR
+    primary_exchange: IBIS       # XETRA
+    description: "Hensoldt AG (德国国防电子, 雷达/光电)"
+    benchmark: DAX               # 德国本土大盘
+    region: EU                   # EU 大区"其它"组 (欧洲国防独立 → 跟 US ITA 反而脱钩)
+    runnable: false
 
   # ── 日股 (manual_only): 跟隔壁 apex_codex 工程对齐, benchmark 用 N225 (Nikkei 225) ──
   # 任天堂 (manual_only): IBKR 没日股订阅, Claude Code 引导手动分析
@@ -385,7 +425,43 @@ symbol_contracts:
     primary_exchange: TSEJ
     description: "Mitsubishi Heavy Industries (三菱重工, 东证 7011, 国防/航天/能源装备)"
     benchmark: N225
-    region: JP
+    region: JP                   # JP 大区"其它"组
+    runnable: false
+
+  # 信越化学 (manual_only): 全球硅晶圆龙头, 半导体材料核心
+  "4063":
+    symbol: "4063"
+    sec_type: STK
+    exchange: SMART
+    currency: JPY
+    primary_exchange: TSEJ
+    description: "信越化学 Shin-Etsu Chemical (硅晶圆全球第一 + PVC)"
+    benchmark: N225
+    region: JP                   # JP 大区"其它"组
+    runnable: false
+
+  # HOYA (manual_only): EUV 光罩基板独家 + HDD 玻璃
+  "7741":
+    symbol: "7741"
+    sec_type: STK
+    exchange: SMART
+    currency: JPY
+    primary_exchange: TSEJ
+    description: "HOYA (EUV 光罩基板 + HDD 玻璃 + 眼镜镜片)"
+    benchmark: N225
+    region: JP                   # JP 大区"其它"组
+    runnable: false
+
+  # 味之素 (manual_only): 主营食品, 但 ABF 芯片基板是 CPU/GPU 不可替代材料
+  "2802":
+    symbol: "2802"
+    sec_type: STK
+    exchange: SMART
+    currency: JPY
+    primary_exchange: TSEJ
+    description: "味之素 Ajinomoto (ABF 芯片基板 + 食品/调味料)"
+    benchmark: N225
+    region: JP                   # JP 大区"其它"组
     runnable: false
 
   # 日经 225 指数 (纯 reference label, 不进 analysis_targets, 不被 horizon 拉取)
@@ -398,6 +474,28 @@ symbol_contracts:
     description: "Nikkei 225 Index (日经 225 大盘)"
     benchmark: null
     region: JP
+
+  # DAX 40 指数 (德国大盘 reference, EU 标的的 benchmark 引用)
+  DAX:
+    symbol: DAX
+    sec_type: IND
+    exchange: EUREX
+    currency: EUR
+    primary_exchange: EUREX
+    description: "DAX 40 Index (德国大盘)"
+    benchmark: null
+    region: EU
+
+  # AEX 25 指数 (荷兰大盘 reference, EU 标的的 benchmark 引用)
+  AEX:
+    symbol: AEX
+    sec_type: IND
+    exchange: FTA
+    currency: EUR
+    primary_exchange: FTA
+    description: "AEX 25 Index (荷兰大盘)"
+    benchmark: null
+    region: EU
 
   # ---------------------------------- ETFs ---------------------------------- #
   # 宽基 ETF：自身就是参照系，benchmark 为 null

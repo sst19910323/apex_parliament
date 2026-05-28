@@ -5,7 +5,7 @@ Horizon Sentinel - AI Parliament Scheduler (V9.0 - DAG-Driven Concurrent)
 核心逻辑:
 1. [DAG 调度] 根据 symbols.yaml 的 sector 字段构依赖图：
      GENERAL → 板块 ETF / 宽基 ETF / 无板块个股 → 有板块个股(等其 sector 完成)
-2. [LLM 并发] 全局 Semaphore 控辩论并发上限 (MAX_DEBATE_CONCURRENT=8)。
+2. [LLM 并发] 全局 Semaphore 控辩论并发上限 (MAX_DEBATE_CONCURRENT=20)。
 3. [IBKR 串行节流] 单 fetcher 协程，所有 IBKR 请求串行 + 强制 ≥1s 间隔。
 4. [JIT 数据] 每个标的开始辩论前检查其依赖数据鲜度 (≤1h)，过期则入 fetch 队列。
 5. [子等父结束] child 必须等 parent 的辩论 analysis 结果完整产出才入 pool。
@@ -50,7 +50,7 @@ RUN_TIMES = [dtime(9, 0)]
 CHECK_INTERVAL = 60
 
 # 调度并发参数
-MAX_DEBATE_CONCURRENT = 8         # LLM 辩论同时进行的最大数量
+MAX_DEBATE_CONCURRENT = 20        # LLM 辩论同时进行的最大数量 (DeepSeek 默认 500 并发, 此处实际瓶颈是 IBKR 串行拉数据)
 IBKR_REQUEST_INTERVAL = 1.0       # IBKR 两次请求之间最小间隔(秒)
 DATA_FRESHNESS_SECONDS = 3600     # 技术数据鲜度阈值(1小时)，超过则重拉
 

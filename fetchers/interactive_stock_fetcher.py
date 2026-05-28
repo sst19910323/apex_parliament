@@ -398,6 +398,13 @@ class MarketDataFetcher(InteractiveConnection):
         if schedules is None:
             schedules = self.config.schedules
 
+        # US 标的走 realtime(已订阅);非 USD(EU/JP 等无订阅)切 delayed-15min
+        md_type = 1 if symbol_contract.currency.upper() == "USD" else 3
+        try:
+            self.reqMarketDataType(md_type)
+        except Exception as exc:
+            print(f"[MARKET_DATA][WARN] reqMarketDataType({md_type}) failed: {exc}")
+
         results: Dict[str, pd.DataFrame] = {}
         for schedule in schedules:
             try:
