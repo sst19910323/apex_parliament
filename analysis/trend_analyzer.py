@@ -240,14 +240,14 @@ def calculate_simplified_trend(df: pd.DataFrame, target: int = 30) -> Optional[D
             flow_sequence.append({
                 "time": time_str,  # Fixed: YYYY-MM-DDTHH:MM:SS+00:00
                 "close": round(float(close_p), 2),
-                "pct": pct,
-                "vol_rel": vol_rel
+                "cumulative_pct_from_prev_swing_node": pct,    # 旧名 pct: DP 简化后从上一节点的累计涨跌%
+                "local_7bar_vol_vs_20bar_rolling": vol_rel,    # 旧名 vol_rel: 节点前后 7 根均量 vs 20 根 rolling 均量
             })
-            
+
             prev_price = close_p
-            
+
         return {
-            "description": "DP简化流 (time=ISO8601, close=价格, pct=波段涨幅%, vol_rel=相对量比)",
+            "description": "DP简化流 (字段名自描述; 末节点若落非regular session, vol字段会被上游置 null)",
             "flow_sequence": flow_sequence
         }
 

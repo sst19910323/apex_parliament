@@ -387,7 +387,7 @@ symbol_contracts:
     currency: EUR
     primary_exchange: AEB        # Euronext Amsterdam
     description: "BE Semiconductor Industries (荷兰, 半导体先进封装 hybrid bonding 龙头)"
-    benchmark: AEX               # 荷兰本土大盘
+    benchmark: IAEX              # 荷兰本土大盘代理 (iShares AEX ETF, 因裸指数无订阅)
     region: EU                   # EU 大区"其它"组
     runnable: false
 
@@ -486,14 +486,19 @@ symbol_contracts:
     benchmark: null
     region: EU
 
-  # AEX 25 指数 (荷兰大盘 reference, EU 标的的 benchmark 引用)
-  AEX:
-    symbol: AEX
-    sec_type: IND
-    exchange: FTA
+  # iShares AEX UCITS ETF (荷兰大盘代理, EU 标的的 benchmark 引用)
+  # 背景: 原本想用裸 AEX 指数 (IND@FTA), 实测本账户没有历史数据订阅:
+  #   - AEX / IND / FTA → code=200 No security definition ("AEX" ticker 被德股 CHUBB 占用)
+  #   - AEXSET / IND / FTA (真指数 conId=360978541) → code=162 HMDS no data
+  #   - IAEX / STK / AEB (iShares AEX UCITS ETF, conId=37036623) → 正常返回 1h bars ✓
+  # 决策: 用 IAEX ETF 代理 AEX 指数; 键名跟 symbol 保持一致 (fetcher 按 key 解析 IBKR ticker)
+  IAEX:
+    symbol: IAEX
+    sec_type: STK
+    exchange: AEB
     currency: EUR
-    primary_exchange: FTA
-    description: "AEX 25 Index (荷兰大盘)"
+    primary_exchange: AEB
+    description: "iShares AEX UCITS ETF (荷兰大盘代理, 替代裸 AEX 指数因订阅缺失)"
     benchmark: null
     region: EU
 

@@ -57,13 +57,14 @@ FEATURE_GROUP_MAP = {
     "last_wap": "current_snapshot",
     "change_vs_prior_regular_close_pct": "current_snapshot",
     "change_since_regular_open_pct": "current_snapshot",       # regular / after-hours only; else null
-    "vwap_dist_pct": "current_snapshot",                        # regular only; else null
-    "volume_ratio_vs_20d_daily_avg": "current_snapshot",        # null during pre-market (partial-day volume misleads)
-    "volume_ratio_5m_vs_20bar_avg": "current_snapshot",
-    "price_change_pct_5m": "current_snapshot",
-    "rsi_14_5min": "current_snapshot",
-    "atr_14_5min": "current_snapshot",
-    "liquidity_score_vol_per_bar": "current_snapshot",
+    "vwap_dist_pct_regular_session_only": "current_snapshot",                         # regular only; else null
+    "volume_ratio_vs_20d_daily_avg": "current_snapshot",                              # null during pre-market (partial-day volume misleads)
+    # 以下 5 个 thin-bar 字段名带 _regular_session_only 后缀, 见名知意"非 regular 时此字段必 null"
+    "volume_ratio_5m_vs_20bar_avg_regular_session_only": "current_snapshot",
+    "price_change_pct_5m_regular_session_only": "current_snapshot",
+    "rsi_14_5min_regular_session_only": "current_snapshot",
+    "atr_14_5min_regular_session_only": "current_snapshot",
+    "latest_1m_vol_per_avg_barcount_regular_session_only": "current_snapshot",
 
     # --- daily_technicals: 日线级指标 ---
     "ma_20_daily_val": "daily_technicals",
@@ -71,33 +72,37 @@ FEATURE_GROUP_MAP = {
     "ma_200_daily_val": "daily_technicals",
     "rsi_14_daily": "daily_technicals",
     "macd_hist_daily": "daily_technicals",
-    "atr_14_daily_percent": "daily_technicals",
+    "atr_pct_14_daily": "daily_technicals",
+    "atr_pct_14_daily_pctile_60d": "daily_technicals",          # 派生: 当前 ATR% 在近 60d 分布的百分位
     "bb_pct_b_daily": "daily_technicals",
     "bb_width_pct_daily": "daily_technicals",
-    "ma_cross_status": "daily_technicals",
+    "bb_width_pct_daily_pctile_60d": "daily_technicals",        # 派生: 当前 BB 宽度在近 60d 分布的百分位
+    "ma_50_200_cross_event": "daily_technicals",
     "ma_alignment": "daily_technicals",
     "obv_slope_5d": "daily_technicals",
+    "obv_slope_5d_pctile_60d": "daily_technicals",              # 派生: 当前 OBV slope 在近 60d 分布的百分位
     "volatility_regime_daily": "daily_technicals",
-    "recent_gaps": "daily_technicals",
-    "consolidation_days": "daily_technicals",
+    "today_open_gap_direction": "daily_technicals",
+    "is_consolidating_last_5d": "daily_technicals",
 
     # --- hourly_technicals ---
     "ma_20_hourly_val": "hourly_technicals",
     "ma_50_hourly_val": "hourly_technicals",
     "ma_20_slope_pct_hourly": "hourly_technicals",
+    "ma_20_slope_pct_hourly_pctile_60bar": "hourly_technicals",   # 派生: 当前斜率在近 60 hourly bar 分布的百分位
     "rsi_14_hourly": "hourly_technicals",
     "macd_hist_hourly": "hourly_technicals",
     "atr_14_hourly": "hourly_technicals",
     "bb_pct_b_hourly": "hourly_technicals",
-    "volume_ratio_vs_avg_hourly": "hourly_technicals",
+    "volume_ratio_vs_avg_hourly_regular_session_only": "hourly_technicals",  # rename: 非 regular 时 null
 
     # --- weekly_snapshot ---
     "ma_40_weekly_val": "weekly_snapshot",
     "ma_200_weekly_val": "weekly_snapshot",
 
     # --- positioning ---
-    "percent_from_52w_high_low": "positioning",
-    "nearest_support_resistance": "positioning",
+    "percentile_in_52w_range": "positioning",                   # 旧名 percent_from_52w_high_low (语义: 在52w区间内的百分位, 不是离高/低多少%)
+    "nearest_support_resistance": "positioning",                # 内含 range_30d_low/high + 派生距离 + 非对称比 (旧只有 support/resistance)
     "max_drawdown_30d": "positioning",
     "sharpe_ratio_30d": "positioning",
     "relative_strength_vs_spy": "positioning",
@@ -476,8 +481,26 @@ def safe_float(value: Any, precision: int = 4) -> Optional[float]:
         return None
 
 def safe_int(value: Any) -> Optional[int]:
-    val = safe_float(value, 0) 
+    val = safe_float(value, 0)
     return int(val) if val is not None else None
+
+
+def compute_pctile_in_history(series, current_val, window: int = 60, min_samples: int = 10) -> Optional[float]:
+    """Return percentile (0-100) of current_val in last `window` valid points of `series`.
+    用于"有量纲无参照"字段 (obv_slope_5d / atr_pct / bb_width_pct / ma_slope_pct 等),
+    告诉 AI 当前值在近期分布的相对位置, 不靠 AI 自己脑补"算大算小"。
+    """
+    if current_val is None:
+        return None
+    try:
+        recent = series.iloc[-window:].dropna()
+        if len(recent) < min_samples:
+            return None
+        pctile = (recent < current_val).sum() / len(recent) * 100
+        return round(float(pctile), 1)
+    except Exception:
+        return None
+
 
 BENCHMARK_DATA = {}
 
@@ -557,26 +580,30 @@ def calculate_all_features(
                     vwap = (today_regular["wap"] * today_regular["volume"]).sum() / vol_sum
                     if vwap > 0:
                         vwap_dist = (latest_1m["close"] - vwap) / vwap * 100
-        features["vwap_dist_pct"] = safe_float(vwap_dist, 2)
+        features["vwap_dist_pct_regular_session_only"] = safe_float(vwap_dist, 2)
 
-        # 5m rolling volume ratio: always meaningful (rolling window)
+        # 5m rolling volume ratio: 算法本身一直可算, 但非 regular session 下 5m bar 是 thin volume,
+        # 数值看似"轻微缩量"实际是 session 性质 → null。字段名带 _regular_session_only 后缀, 见名知意。
         df_5m_ta = df_5m.copy()
         df_5m_ta["volume_sma20"] = df_5m_ta["volume"].rolling(20).mean()
         latest_5m = df_5m_ta.iloc[-1]
         vol_ratio_5m = (latest_5m["volume"] / latest_5m["volume_sma20"]) if latest_5m["volume_sma20"] > 0 else None
-        features["volume_ratio_5m_vs_20bar_avg"] = safe_float(vol_ratio_5m, 2)
+        features["volume_ratio_5m_vs_20bar_avg_regular_session_only"] = safe_float(vol_ratio_5m, 2) if is_regular else None
 
-        features["price_change_pct_5m"] = safe_float(df_5m["close"].pct_change(1).iloc[-1] * 100, 2)
+        # 非 regular session 时 5m bar 常无成交, close 不动 → 0.02 假象
+        features["price_change_pct_5m_regular_session_only"] = safe_float(df_5m["close"].pct_change(1).iloc[-1] * 100, 2) if is_regular else None
 
         df_5m_ta.ta.rsi(length=14, append=True)
         df_5m_ta.ta.atr(length=14, append=True)
-        features["rsi_14_5min"] = safe_float(df_5m_ta.iloc[-1].get("RSI_14"), 2)
-        features["atr_14_5min"] = safe_float(df_5m_ta.iloc[-1].get("ATRr_14"), 4)
+        # rsi/atr 5min: 非 regular 时样本 thin, RSI 漂向 50, ATR 被压低 → null
+        features["rsi_14_5min_regular_session_only"] = safe_float(df_5m_ta.iloc[-1].get("RSI_14"), 2) if is_regular else None
+        features["atr_14_5min_regular_session_only"] = safe_float(df_5m_ta.iloc[-1].get("ATRr_14"), 4) if is_regular else None
 
         if "barcount" in df_1m.columns:
             avg_barcount = df_1m.iloc[-60:]["barcount"].mean()
             if avg_barcount > 0:
-                features["liquidity_score_vol_per_bar"] = safe_float(latest_1m["volume"] / avg_barcount, 2)
+                # 非 regular session 时 1m volume 极薄, 比值假低
+                features["latest_1m_vol_per_avg_barcount_regular_session_only"] = safe_float(latest_1m["volume"] / avg_barcount, 2) if is_regular else None
 
     except Exception as e:
         log.error(f"Failed calculating current_snapshot features: {e}", exc_info=True)
@@ -603,6 +630,12 @@ def calculate_all_features(
             if ma_prev > 0:
                 slope = (ma_now - ma_prev) / ma_prev * 100
                 features["ma_20_slope_pct_hourly"] = safe_float(slope, 3)
+                # 加 60 hourly bar 百分位 (告诉 AI 当前斜率算"陡"还是"缓"):
+                sma20_series = df_1h_ta["SMA_20"]
+                slope_history = (sma20_series - sma20_series.shift(5)) / sma20_series.shift(5).abs() * 100
+                features["ma_20_slope_pct_hourly_pctile_60bar"] = compute_pctile_in_history(
+                    slope_history, features["ma_20_slope_pct_hourly"], window=60
+                )
         
         features["rsi_14_hourly"] = safe_float(latest_1h.get("RSI_14"), 2)
         
@@ -622,19 +655,27 @@ def calculate_all_features(
                 pct_b = (latest_1h["close"] - lower) / width
                 features["bb_pct_b_hourly"] = safe_float(pct_b, 2)
         
-        features["volume_ratio_vs_avg_hourly"] = safe_float(
-            latest_1h["volume"] / latest_1h["volume_sma20"] if latest_1h.get("volume_sma20", 0) > 0 else None, 2
+        # 非 regular session 时 hourly bar 极薄, 比值假低 → null。字段名带 _regular_session_only 后缀。
+        _vol_ratio_h = (
+            latest_1h["volume"] / latest_1h["volume_sma20"] if latest_1h.get("volume_sma20", 0) > 0 else None
         )
-        
+        features["volume_ratio_vs_avg_hourly_regular_session_only"] = safe_float(_vol_ratio_h, 2) if is_regular else None
+
         if len(df_1h) > 20:
             swing_data = calculate_swing_points(
                 df_1h, lookback_window=20, min_swing_pct=0.015, max_points=25
             )
             if swing_data:
                 features["price_structure_tactical"] = swing_data
-            
+
             micro_flow = calculate_simplified_trend(df_1h, target=30)
             if micro_flow:
+                # 末根 vol_rel 若落在非 regular session, 其 local_7bar 必然 thin → null
+                # (跟其他 thin-bar 字段同模式; 末根 cumulative_pct 仍真实, 是 swing-cumulative 性质)
+                if not is_regular:
+                    fs = micro_flow.get("flow_sequence", [])
+                    if fs:
+                        fs[-1]["local_7bar_vol_vs_20bar_rolling"] = None
                 features["micro_flow_engine"] = micro_flow
         
     except Exception as e:
@@ -668,29 +709,43 @@ def calculate_all_features(
             sma50_prev = df_1d_ta.iloc[-2]["SMA_50"]
             sma200_prev = df_1d_ta.iloc[-2]["SMA_200"]
             
+            # 拆分: ma_50_200_cross_event 只输出真正的"交叉事件"; 普通 Bullish/Bearish alignment 走 ma_alignment
             if sma50_now > sma200_now and sma50_prev <= sma200_prev:
-                 features["ma_cross_status"] = "Golden Cross"
+                 features["ma_50_200_cross_event"] = "Golden Cross"
             elif sma50_now < sma200_now and sma50_prev >= sma200_prev:
-                 features["ma_cross_status"] = "Death Cross"
+                 features["ma_50_200_cross_event"] = "Death Cross"
             else:
-                 features["ma_cross_status"] = "Bullish" if sma50_now > sma200_now else "Bearish"
-                 
+                 features["ma_50_200_cross_event"] = "None"
+
             if "SMA_20" in df_1d_ta.columns:
                 sma20_now = latest_1d["SMA_20"]
                 features["ma_alignment"] = "Bullish" if sma20_now > sma50_now > sma200_now else \
                                            "Bearish" if sma20_now < sma50_now < sma200_now else "Mixed"
         
-        features["rsi_14_daily"] = safe_float(latest_1d.get("RSI_14"), 2)
-        
-        if "MACDh_12_26_9" in df_1d_ta.columns:
-            features["macd_hist_daily"] = safe_float(latest_1d["MACDh_12_26_9"], 3)
-        
-        features["atr_14_daily_percent"] = safe_float((latest_1d.get("ATRr_14", 0) / latest_1d["close"]) * 100, 2)
+        # 2C: 序列收敛指标 (RSI/MACD/ATR/volatility_regime) 在非 regular session 时,
+        # 末根 daily bar 是 partial (盘前只有几小时数据), 用 partial 算的 RSI/MACD/ATR 会失真。
+        # 改用倒数第二根 (= 上一交易日已收盘的完整 bar)。regular session 时仍用末根 (实时累计)。
+        seq_idx = -1 if is_regular else -2
+        seq_bar = df_1d_ta.iloc[seq_idx] if len(df_1d_ta) >= abs(seq_idx) else None
+
+        features["rsi_14_daily"] = safe_float(seq_bar.get("RSI_14"), 2) if seq_bar is not None else None
+
+        if "MACDh_12_26_9" in df_1d_ta.columns and seq_bar is not None:
+            features["macd_hist_daily"] = safe_float(seq_bar["MACDh_12_26_9"], 3)
+
+        if seq_bar is not None and seq_bar.get("close", 0) > 0:
+            features["atr_pct_14_daily"] = safe_float((seq_bar.get("ATRr_14", 0) / seq_bar["close"]) * 100, 2)
+            # 60d 百分位 (告诉 AI 当前 ATR% 算"高波"还是"低波"):
+            atr_pct_series = (df_1d_ta["ATRr_14"] / df_1d_ta["close"]) * 100
+            features["atr_pct_14_daily_pctile_60d"] = compute_pctile_in_history(
+                atr_pct_series, features.get("atr_pct_14_daily"), window=60
+            )
         
         bb_upper_col = next((c for c in df_1d_ta.columns if c.startswith("BBU_")), None)
         bb_lower_col = next((c for c in df_1d_ta.columns if c.startswith("BBL_")), None)
         
         if bb_upper_col and bb_lower_col:
+            # bb_pct_b_daily 和 bb_width 用末根 (反映当前价位/当前 BB 状态, partial 是特性不是 bug)
             upper = latest_1d[bb_upper_col]
             lower = latest_1d[bb_lower_col]
             width = upper - lower
@@ -699,6 +754,11 @@ def calculate_all_features(
                 features["bb_pct_b_daily"] = safe_float(pct_b, 2)
                 if latest_1d.get("SMA_20", 0) > 0:
                     features["bb_width_pct_daily"] = safe_float(width / latest_1d["SMA_20"] * 100, 2)
+                    # 60d 百分位 (告诉 AI 当前带宽"宽"还是"窄"):
+                    bb_width_hist = (df_1d_ta[bb_upper_col] - df_1d_ta[bb_lower_col]) / df_1d_ta["SMA_20"] * 100
+                    features["bb_width_pct_daily_pctile_60d"] = compute_pctile_in_history(
+                        bb_width_hist, features.get("bb_width_pct_daily"), window=60
+                    )
         
         # volume_ratio_vs_20d_daily_avg: null during pre-market (today's daily bar is partial with
         # negligible volume, ratio collapses to near-zero and misleads downstream readers).
@@ -710,13 +770,21 @@ def calculate_all_features(
             )
         
         if "OBV" in df_1d_ta.columns and len(df_1d_ta) >= 5:
+            # obv_slope 用末根 OBV - 5 天前 OBV; pre-market 时末根 OBV 几乎=昨日 OBV (partial vol 极小),
+            # 所以 slope 反映"5 天前 → 昨天"的真实变化, partial 影响可忽略 → 不用 drop 末根
             obv_now = latest_1d["OBV"]
             obv_prev = df_1d_ta.iloc[-5]["OBV"]
             if obv_prev != 0:
                 slope = (obv_now - obv_prev) / abs(obv_prev) * 100
                 features["obv_slope_5d"] = safe_float(slope, 2)
-        
-        atr_pct = features.get("atr_14_daily_percent", 0)
+                # 60d 百分位 (告诉 AI 当前 OBV 5 日变化算"大"还是"小"; 解决 20.56 算大算小没参照的问题):
+                obv_slope_history = (df_1d_ta["OBV"] - df_1d_ta["OBV"].shift(5)) / df_1d_ta["OBV"].shift(5).abs() * 100
+                features["obv_slope_5d_pctile_60d"] = compute_pctile_in_history(
+                    obv_slope_history, features.get("obv_slope_5d"), window=60
+                )
+
+        # volatility_regime 跟 atr_pct_14_daily 同源, 用 seq_bar (非 regular 时已是上一交易日)
+        atr_pct = features.get("atr_pct_14_daily", 0)
         if atr_pct:
             atr_pct_avg = (df_1d_ta["ATRr_14"] / df_1d_ta["close"] * 100).iloc[-60:].mean()
             features["volatility_regime_daily"] = "High" if atr_pct > atr_pct_avg * 1.25 else "Low" if atr_pct < atr_pct_avg * 0.75 else "Normal"
@@ -724,11 +792,13 @@ def calculate_all_features(
         if len(df_1d_ta) >= 2:
             prev_1d = df_1d_ta.iloc[-2]
             gap_pct = (latest_1d["open"] - prev_1d["close"]) / prev_1d["close"]
-            features["recent_gaps"] = "Up" if gap_pct > 0.01 else "Down" if gap_pct < -0.01 else "None"
-        
+            # 旧名 recent_gaps; 只判定"今日 open vs 昨日 close"单次跳空, 不是"近 N 日跳空总览"
+            features["today_open_gap_direction"] = "Up" if gap_pct > 0.01 else "Down" if gap_pct < -0.01 else "None"
+
         if len(df_1d_ta) >= 5:
             is_consolidating = (df_1d_ta.iloc[-5:]["high"].max() - df_1d_ta.iloc[-5:]["low"].min()) / latest_1d["close"] < 0.05
-            features["consolidation_days"] = 5 if is_consolidating else 0
+            # 旧名 consolidation_days, 输出 0/5 不是真"天数" → 改 boolean
+            features["is_consolidating_last_5d"] = bool(is_consolidating)
             
     except Exception as e:
         log.error(f"Failed calculating daily_features: {e}", exc_info=True)
@@ -754,10 +824,30 @@ def calculate_all_features(
         low_52w = df_52w["low"].min()
         last_price = features.get("last_price")
         if last_price and (high_52w - low_52w) > 0:
-            features["percent_from_52w_high_low"] = safe_float((last_price - low_52w) / (high_52w - low_52w) * 100, 2)
-        
+            # 旧名 percent_from_52w_high_low; 实际语义是"在 52w 区间内的百分位" (0 = 52w低, 100 = 52w高)
+            features["percentile_in_52w_range"] = safe_float((last_price - low_52w) / (high_52w - low_52w) * 100, 2)
+
         df_30d = df_1d.iloc[-30:]
-        features["nearest_support_resistance"] = {"support": safe_float(df_30d["low"].min()), "resistance": safe_float(df_30d["high"].max())}
+        range_30d_low = safe_float(df_30d["low"].min())
+        range_30d_high = safe_float(df_30d["high"].max())
+
+        # A2: 加派生距离 + 非对称比 (信息字段, 不加阈值 flag, 让 AI 自己读)
+        downside_pct = None
+        upside_pct = None
+        asymmetry_ratio = None
+        if last_price and range_30d_low and range_30d_high and last_price > 0:
+            downside_pct = round((last_price - range_30d_low) / last_price * 100, 2)
+            upside_pct = round((range_30d_high - last_price) / last_price * 100, 2)
+            if downside_pct and downside_pct > 0:
+                asymmetry_ratio = round(upside_pct / downside_pct, 2)
+
+        features["nearest_support_resistance"] = {
+            "range_30d_low": range_30d_low,                          # 旧名 support; 就是 30d 最低, 不是真 pivot
+            "range_30d_high": range_30d_high,                        # 旧名 resistance; 就是 30d 最高
+            "downside_to_30d_low_pct": downside_pct,                 # 派生: 当前价距 30d 低的下方空间 %
+            "upside_to_30d_high_pct": upside_pct,                    # 派生: 当前价距 30d 高的上方空间 %
+            "asymmetry_ratio_upside_over_downside": asymmetry_ratio, # 派生: upside / downside, <<1 = 上紧下空(真空), >>1 = 下紧上空
+        }
 
         trend_1h = features.get("ma_20_slope_pct_hourly", 0) > 0
         trend_1d = features.get("ma_alignment") == "Bullish"
@@ -864,6 +954,18 @@ def build_json_output(
             output_json.setdefault(group, {})[sub_key] = all_features[key]
         else:
             output_json.setdefault(group, {})[key] = all_features[key]
+
+    # 给 list-wrapped 结构的 description 值注入 symbol, 防 attention 漂到 list 元素时丢身份
+    # 顶层 key 虽有 {SYMBOL}_ 前缀, 但 list 内 element dict (如 flow_sequence/pivots) 没 symbol;
+    # description 值前置 [SYMBOL] 让 LLM 在上下文几行内一眼看到归属
+    ps_block = output_json.get("price_structure", {})
+    if isinstance(ps_block, dict):
+        for sub_key in ("tactical", "strategic", "micro_flow_engine"):
+            sub_block = ps_block.get(sub_key)
+            if isinstance(sub_block, dict) and "description" in sub_block:
+                desc = sub_block["description"]
+                if symbol and isinstance(desc, str) and f"[{symbol}]" not in desc:
+                    sub_block["description"] = f"[{symbol}] {desc}"
 
     return flatten_with_symbol_prefix(symbol, output_json)
 

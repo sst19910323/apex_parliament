@@ -60,7 +60,13 @@ All three agents have debate rules built into their system prompts, preventing d
 - **Mandatory Bayesian updating:** When the opponent presents valid new evidence, action parameters must be adjusted — purely rhetorical resistance is not permitted
 - **Information increment requirement:** Each round must bring new content; sufficiently discussed points are treated as "priced in" with diminishing marginal persuasion
 - **Dispute shelving mechanism:** When neither side has new evidence, the dispute must be explicitly shelved and a new argument direction opened
-- **Raw data vs. `[推论]` (inference) tagging:** A `raw_data` field (e.g. `RSI=72.3`) is consensus — quote it and no one may overturn it. But a second-order *interpretation* of that data ("overbought", "trend reversal") must be tagged `[推论]`. The tag is a public declaration of "this is my reasoning, challenge the chain" — so rebutting a `[推论]` is legitimate debate, not data denial. Stating an inference in ground-truth voice ("obviously it's going to drop") is a format violation; any core claim that moves `action` / `direction` / `target` must carry the tag.
+- **Raw data vs. `[推论]` (inference) tagging:** A `raw_data` field (e.g. `RSI=72.3`) is consensus — quote it and no one may overturn it. But a second-order *interpretation* of that data must be tagged. The tag now splits into two:
+  - **`[推论·前瞻]`** — forward-looking inference about something that hasn't happened yet (a pending catalyst, room for multiple expansion, money flow improving).
+  - **`[推论·后视]`** — hindsight inference about realized moves (drawdowns, MACD/OBV/RSI already printed, supports already broken).
+  - A hindsight tag is allowed to *describe state*, but **cannot be the primary driver of an action change** — Fulcrum and Chronicler downweight it to a supporting role. A trim / add call that has only `[推论·后视]` evidence and no `[推论·前瞻]` automatically loses points.
+  Stating an inference in ground-truth voice ("obviously it's going to drop") is still a format violation; any core claim that moves `action` / `direction` / `target` must carry the appropriate `[推论·*]` tag.
+- **Symmetric hindsight-momentum trap:** A rally is not a reason to be long, and a drop is not a reason to be short. Momentum tells you who's been winning, not where to stand now. Pure realized-move evidence (% gain / % loss / a fresh MACD print / new high or low) doesn't predict the next leg — it goes in `[推论·后视]` and gets downweighted. The rule binds both sides symmetrically.
+- **Magnitude before sign (a dial, not a switch):** When citing a graduated indicator (MACD / RSI / OBV / MA distance / volume ratio), the *sign* alone (positive/negative, crossed up/down, broke through/broke below) is not a conclusion. You must also state the **magnitude** (how far from the threshold — hugging or clear?) and the **direction of change** (widening or converging?). Small crossings near the threshold are noise by default; the side citing them has to explain why this time isn't. Same symmetric guard against both "MACD histogram −1.7 means bears are in charge" and "RSI 53.6 isn't overbought so we're fine to add."
 
 ---
 
@@ -202,7 +208,7 @@ data/examples/
 <details>
 <summary><b>Technical Snapshot — Selected Fields, Current Schema (click to expand)</b></summary>
 
-Every leaf key carries its owning symbol up front, so cross-symbol references can never lose track of ownership:
+Every leaf key carries its owning symbol up front, so cross-symbol references can never lose track of ownership. Session-sensitive fields end in `_regular_session_only` — they're explicitly `null` during pre/post-market so the AI can't misread partial-day stats. Many percentile-vs-60d derivatives are emitted next to raw indicators so "RSI 53.6" can be checked against its own recent distribution instead of fixed thresholds:
 
 ```json
 {
@@ -211,13 +217,22 @@ Every leaf key carries its owning symbol up front, so cross-symbol references ca
 
   "QQQ_current_snapshot_last_price": 612.50,
   "QQQ_current_snapshot_last_volume": 18420300,
+  "QQQ_current_snapshot_vwap_dist_pct_regular_session_only": 0.42,
+  "QQQ_current_snapshot_rsi_14_5min_regular_session_only": 77.87,
+  "QQQ_current_snapshot_atr_14_5min_regular_session_only": 15.12,
+  "QQQ_current_snapshot_latest_1m_vol_per_avg_barcount_regular_session_only": 1.34,
 
-  "QQQ_minute_level_rsi_14_5min": 77.87,
-  "QQQ_minute_level_atr_14_5min": 15.12,
-  "QQQ_minute_level_liquidity_score_vol_per_bar": 0.0,
+  "QQQ_daily_technicals_atr_pct_14_daily": 1.18,
+  "QQQ_daily_technicals_atr_pct_14_daily_pctile_60d": 38,
+  "QQQ_daily_technicals_bb_width_pct_daily_pctile_60d": 22,
+  "QQQ_daily_technicals_ma_50_200_cross_event": "none",
+  "QQQ_daily_technicals_obv_slope_5d_pctile_60d": 71,
+  "QQQ_daily_technicals_today_open_gap_direction": "gap_up",
+  "QQQ_daily_technicals_is_consolidating_last_5d": false,
 
   "QQQ_hourly_technicals_ma_20_hourly_val": 610.25,
   "QQQ_hourly_technicals_ma_50_hourly_val": 615.50,
+  "QQQ_hourly_technicals_ma_20_slope_pct_hourly_pctile_60bar": 64,
   "QQQ_hourly_technicals_rsi_14_hourly": 50.59,
   "QQQ_hourly_technicals_macd_hist_hourly": 0.556,
   "QQQ_hourly_technicals_bb_pct_b_hourly": 0.59
@@ -453,7 +468,13 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架，核
 - **贝叶斯强制更新：** 对方提出有效新证据时，必须调整自己的行动参数，不能只靠修辞抵抗
 - **信息增量要求：** 每轮必须带来新内容，已充分讨论过的争议点视为已定价，边际说服力递减
 - **争议搁置机制：** 双方均无新证据时，必须显式声明搁置该争议，开辟新的论证方向
-- **原始数据 vs `[推论]` 标注：** `raw_data` 字段（如 `RSI=72.3`）是共识，引用即定，谁都不能推翻；但基于数据的二阶解读（"超买"、"趋势反转"）必须打 `[推论]` 标签。这个标签等于公开声明"这是我的推导、欢迎挑战推导链"——所以反驳一个 `[推论]` 是合法辩论，不是质疑数据。用 ground-truth 口气陈述推论（"显然要跌"）属于格式违规；任何会推动 `action` / `direction` / `target` 的核心判断都必须带标签。
+- **原始数据 vs `[推论]` 标注：** `raw_data` 字段（如 `RSI=72.3`）是共识，引用即定，谁都不能推翻；但基于数据的二阶解读必须打标签。标签现在拆成两种：
+  - **`[推论·前瞻]`** —— 基于尚未发生的事（即将兑现的催化剂、估值相对增长空间、资金面正在改善）的判断。
+  - **`[推论·后视]`** —— 基于已实现走势（涨跌幅、MACD/OBV/RSI 已打印、破位 / 反弹已发生）的判断。
+  - 后视标签允许**描述现状**，但**不得作为 action 变动的主驱动**——Fulcrum 和 Chronicler 加权时降为辅助权重。只有 `[推论·后视]` 撑的减仓 / 加仓主张、拿不出 `[推论·前瞻]`，自动失分。
+  用 ground-truth 口气陈述推论（"显然要跌"）仍属格式违规；任何会推动 `action` / `direction` / `target` 的核心判断都必须带相应的 `[推论·*]` 标签。
+- **对称的"后视性动量陷阱"：** 涨幅不是看多的理由，跌幅不是看空的理由。动量告诉你过去谁在赢，不告诉你现在该站哪边。纯粹"已发生的事"作证据（涨跌幅 / 已打印的 MACD / 新高新低），不构成对下一段方向的预测——这类证据进 `[推论·后视]` 并被降权。这条规则对称生效，多空两边都得守。
+- **幅度先于符号（这是个表盘，不是开关）：** 引用任何带刻度的指标（MACD / RSI / OBV / 均线乖离 / 量比）时，**符号本身**（正/负、上穿/下穿、突破/跌破）不构成结论。还必须同时说明**幅度**（距临界点多远——贴着还是远离？）和**变化方向**（在扩大还是收敛？）。贴近临界值的小幅穿越默认是噪音，举证方必须解释为什么这次不是。对称生效，既拦 Reaper 把 "MACD 柱 −1.7 (小幅)" 当 "空头确立"，也拦 Zealot 把 "RSI 53.6 还没超买" 当看多理由。
 
 ---
 
@@ -595,7 +616,7 @@ data/examples/
 <details>
 <summary><b>技术分析快照 — 部分字段（当前 schema，点击展开）</b></summary>
 
-每一个 leaf key 前都直接焊上所属标的，跨标的引用时不可能丢归属：
+每一个 leaf key 前都直接焊上所属标的，跨标的引用时不可能丢归属。带 session 语义的字段以 `_regular_session_only` 结尾——非常规交易时段（盘前盘后）这些字段会显式置 `null`，AI 不会被"半天数据"误导。常用指标旁边还输出对应的 60 天百分位派生（`*_pctile_60d`），让"RSI 53.6"能跟它自己的近期分布对比，而不是死记固定阈值：
 
 ```json
 {
@@ -604,13 +625,22 @@ data/examples/
 
   "QQQ_current_snapshot_last_price": 612.50,
   "QQQ_current_snapshot_last_volume": 18420300,
+  "QQQ_current_snapshot_vwap_dist_pct_regular_session_only": 0.42,
+  "QQQ_current_snapshot_rsi_14_5min_regular_session_only": 77.87,
+  "QQQ_current_snapshot_atr_14_5min_regular_session_only": 15.12,
+  "QQQ_current_snapshot_latest_1m_vol_per_avg_barcount_regular_session_only": 1.34,
 
-  "QQQ_minute_level_rsi_14_5min": 77.87,
-  "QQQ_minute_level_atr_14_5min": 15.12,
-  "QQQ_minute_level_liquidity_score_vol_per_bar": 0.0,
+  "QQQ_daily_technicals_atr_pct_14_daily": 1.18,
+  "QQQ_daily_technicals_atr_pct_14_daily_pctile_60d": 38,
+  "QQQ_daily_technicals_bb_width_pct_daily_pctile_60d": 22,
+  "QQQ_daily_technicals_ma_50_200_cross_event": "none",
+  "QQQ_daily_technicals_obv_slope_5d_pctile_60d": 71,
+  "QQQ_daily_technicals_today_open_gap_direction": "gap_up",
+  "QQQ_daily_technicals_is_consolidating_last_5d": false,
 
   "QQQ_hourly_technicals_ma_20_hourly_val": 610.25,
   "QQQ_hourly_technicals_ma_50_hourly_val": 615.50,
+  "QQQ_hourly_technicals_ma_20_slope_pct_hourly_pctile_60bar": 64,
   "QQQ_hourly_technicals_rsi_14_hourly": 50.59,
   "QQQ_hourly_technicals_macd_hist_hourly": 0.556,
   "QQQ_hourly_technicals_bb_pct_b_hourly": 0.59
