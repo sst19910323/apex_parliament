@@ -90,7 +90,7 @@ final_report_output: |
   - risk_management: 止损/止盈条件必须明确具体（如"跌破$150"），不能模糊
 
   ### 核心决策
-  - action: 0-100整数。0=激进卖出，50=持有，100=激进买入
+  - action: 0-100整数, 综合战略战术的信心刻度 (与 operation_* 共同承载综合 view)。0=极端看空(悲观), 50=中性观望, 100=极端看涨(乐观)
   - operation_type: MARKET_ENTRY / LIMIT_ENTRY / HOLD_NEUTRAL / TRIM_POSITION / LIQUIDATE_NOW
   - operation_target: 交易操作必填具体价格锚点（数字）。
       * 市价单：填当前价作为锚点
