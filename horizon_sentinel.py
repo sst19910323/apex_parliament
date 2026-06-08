@@ -619,8 +619,29 @@ class IbkrFetcher:
         self._lock = asyncio.Lock()
 
     def _ensure_connected_sync(self) -> bool:
-        if self._connected:
-            return True
+        """Layer 1: 主动 liveness probe + 自动重连。
+        旧版只看 self._connected flag, IBKR 断了不会被发现 → fetcher 拉到 stale 数据。
+        新版每次都用 isConnected() 真探一次, 断了自动重连一次, 重连失败返回 False
+        (调用方 _do_fetch_sync 看到 False 会 skip 整个 symbol, 不会触发 builder)。
+        """
+        # 主动 probe: 之前以为连着, 真探一下 socket
+        if self._fetcher is not None:
+            try:
+                if self._fetcher.isConnected():
+                    self._connected = True
+                    return True
+            except Exception:
+                pass  # isConnected 本身抛异常 = 一定断了
+
+        # 此处确认是断的 → 重置并重连
+        self._connected = False
+        if self._fetcher is not None:
+            try:
+                self._fetcher.disconnect_and_stop()
+            except Exception:
+                pass
+            self._fetcher = None
+
         try:
             md_config = MarketDataConfig.from_yaml(str(PROJECT_ROOT / "config/data_sources.yaml"))
             self._fetcher = MarketDataFetcher(md_config)
@@ -628,37 +649,77 @@ class IbkrFetcher:
                 host="127.0.0.1", port=7496,
                 client_id=random.randint(1000, 9999)
             )
-            if ok:
+            if ok and self._fetcher.isConnected():
                 self._connected = True
-                logging.info("🔌 [IbkrFetcher] Connected.")
+                logging.info("🔌 [IbkrFetcher] (Re)connected.")
+                return True
             else:
-                logging.warning("⚠️ [IbkrFetcher] Connect failed. Will use cached data.")
-            return ok
+                logging.warning("⚠️ [IbkrFetcher] Connect failed - IBKR offline?")
+                return False
         except Exception as e:
             logging.warning(f"⚠️ [IbkrFetcher] Connection error: {e}")
             return False
 
+    def _latest_csv_bar_ts(self, symbol: str) -> Optional[str]:
+        """Layer 2 helper: 读 data/market_data/{symbol}/ 下最新 1m CSV 的 filename 编码 bar 时间戳。
+        用于"fetch 前后 bar 是否前进"的检测——区分"IBKR 给了新数据"vs"IBKR 给了同样的老数据"。
+        """
+        csv_root = PROJECT_ROOT / "data" / "market_data" / symbol
+        if not csv_root.exists():
+            return None
+        files = list(csv_root.glob(f"{symbol}_*_1m_*.csv"))
+        if not files:
+            return None
+        latest = max(files, key=lambda f: f.name)  # filename 里 TS 是 YYYYMMDDTHHMMSSZ, lex 排序 = 时间排序
+        parts = latest.stem.split('_')
+        return parts[-1] if parts else None
+
     def _do_fetch_sync(self, symbol: str) -> bool:
-        """同步执行单个 symbol 的 IBKR 拉取 + 技术指标计算。"""
+        """同步执行单个 symbol 的 IBKR 拉取 + 技术指标计算。
+
+        Layer 2 防御:
+        - 没连接 (Layer 1 已 set _connected=False) → 直接 skip, 不跑 builder
+        - 连接 OK 但 IBKR 返回的最新 bar 没前进 → skip builder (避免 force_update 重写
+          stale technical 文件, 那会污染 mtime 让下次 fresh check 被骗)
+        - 只有真拿到新 bar 才跑 builder
+        """
         contracts_def = self.symbols_config.get('symbol_contracts', {})
         c_info = contracts_def.get(symbol)
         if not c_info:
             logging.warning(f"  ⚠️ [Fetch] No contract config for {symbol}, skipping.")
             return False
 
-        if self._connected and self._fetcher:
-            logging.info(f"  📥 [Fetch] {symbol}...")
-            contract = SymbolContract(
-                symbol=c_info['symbol'],
-                sec_type=c_info['sec_type'],
-                exchange=c_info['exchange'],
-                currency=c_info['currency']
-            )
-            try:
-                self._fetcher.fetch_multi_resolutions(contract, force_refresh=True)
-            except Exception as e:
-                logging.error(f"  [Fetch Error] {symbol}: {e}")
+        # 没连接 → 整个 symbol skip (不动 builder, 不污染 mtime)
+        if not self._connected or not self._fetcher:
+            logging.warning(f"  ⚠️ [Fetch] {symbol}: IBKR not connected, SKIP entirely")
+            return False
 
+        # 记录 fetch 前的最新 bar timestamp
+        pre_ts = self._latest_csv_bar_ts(symbol)
+
+        logging.info(f"  📥 [Fetch] {symbol}...")
+        contract = SymbolContract(
+            symbol=c_info['symbol'],
+            sec_type=c_info['sec_type'],
+            exchange=c_info['exchange'],
+            currency=c_info['currency']
+        )
+        try:
+            self._fetcher.fetch_multi_resolutions(contract, force_refresh=True)
+        except Exception as e:
+            logging.error(f"  [Fetch Error] {symbol}: {e}; SKIP builder to avoid stale-mtime trap")
+            return False
+
+        # 检测 IBKR 是否真给了新 bar (区分"成功拉到新数据"vs"成功调用但返回老数据")
+        post_ts = self._latest_csv_bar_ts(symbol)
+        if pre_ts is not None and pre_ts == post_ts:
+            logging.warning(
+                f"  ⚠️ [Fetch] {symbol}: IBKR returned no new bars (still {pre_ts}); "
+                f"SKIP builder (likely IBKR data feed lagging / weekend / session issue)"
+            )
+            return False
+
+        # 真有新数据, 才跑 builder
         try:
             process_symbol_technical_analysis(symbol, force_update=True)
         except Exception as e:
