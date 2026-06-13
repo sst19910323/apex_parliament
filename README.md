@@ -400,13 +400,13 @@ Key milestones along the way — from an overconfident single agent to the curre
 
 ---
 
-## 🌅 Sunset — and What Comes Next
+## 🌱 Where This Edition Is Headed
 
-This open-source edition is winding down. As the server moves overseas, the parts that used to be *mechanical* — fundamentals fetching, news collection, scheduling — are being handed over to agents (a **Hermes** agent + **Claude Code** orchestration), replacing brittle pipelines of unreliable free API keys. That shift turns the project from "a repo you `git clone` and deploy" into something closer to a running agent system, which is why this GitHub edition is reaching its natural end rather than getting another release.
+This isn't an ending — it's a change of form. As the server moves overseas, the parts that used to be *mechanical* — fundamentals fetching, news collection, scheduling — are being handed over to agents (a **Hermes** agent + **Claude Code** orchestration), replacing brittle pipelines of unreliable free API keys. That shift turns the project from "a repo you `git clone` and deploy" into something closer to a running agent system. So this GitHub edition will see fewer updates from here on, as active development moves into that new agent-based form.
 
 What the framework *taught* me, though, outlives any one deployment — those lessons are being written up as a design retrospective, to be shared once it's in presentable shape.
 
-The next project is already brewing. Thanks to everyone who followed along.
+The next iteration is already taking shape. Less a goodbye than a handoff to what comes next.
 
 ---
 
@@ -818,13 +818,13 @@ apex_parliament/
 
 ---
 
-## 🌅 工程谢幕 —— 与下一站
+## 🌱 这个版本的去向
 
-这个开源版本正在收尾。随着服务器搬到国外，过去那些**机械**的部分——基本面请求、新闻采集、调度——正逐步交给 agent 接管（一个 **Hermes** agent + **Claude Code** 托管），告别那套由不好用的免费 key 拼起来的、动不动就掉链子的管线。这一转向，让项目从"`git clone` 下来就能部署的仓库"变成了更接近"一套常驻运行的 agent 系统"的东西——这也是为什么这个 GitHub 版本走到了它自然的终点，而不是再发一个新版。
+这不是终结，而是换了种形态。随着服务器搬到国外，过去那些**机械**的部分——基本面请求、新闻采集、调度——正逐步交给 agent 接管（一个 **Hermes** agent + **Claude Code** 托管），告别那套由不好用的免费 key 拼起来的、动不动就掉链子的管线。这一转向，让项目从"`git clone` 下来就能部署的仓库"变成了更接近"一套常驻运行的 agent 系统"的东西。所以这个 GitHub 版本之后会更新得少了——活跃的开发，正在迁往那套新的 agent 形态。
 
 但这套框架**教会我的东西**，比任何一次部署都活得更久——这些教训正在整理成一份设计回顾，等成型到可展示了再分享。
 
-下一个工程已经在酝酿了。谢谢一路同行的各位。
+下一代已经在成形了。与其说是告别，不如说是把接力棒交给接下来的东西。
 
 ---
 
