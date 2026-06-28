@@ -404,7 +404,7 @@ Key milestones along the way — from an overconfident single agent to the curre
 
 This isn't an ending — it's a change of form. As the server moves overseas, the parts that used to be *mechanical* are moving to agents. A **Hermes** agent + **Claude Code** now handle orchestration, scheduling, and fundamentals requests, while **news is searched live through the Gemini API's *Grounding with Google Search*** (the `google_search` tool, on Gemini 3.5) — no more polling through brittle pipelines of unreliable free API keys. That shift turns the project from "a repo you `git clone` and deploy" into something closer to a running agent system. So this GitHub edition will see fewer updates from here on, as active development moves into that new agent-based form.
 
-What the framework *taught* me, though, outlives any one deployment — those lessons are being written up as a design retrospective, to be shared once it's in presentable shape.
+What the framework *taught* me, though, outlives any one deployment — those lessons are written up as a design retrospective: **[Design Philosophy / 设计哲学](docs/design-philosophy.md)** (bilingual).
 
 The next iteration is already taking shape. Less a goodbye than a handoff to what comes next.
 
@@ -822,7 +822,7 @@ apex_parliament/
 
 这不是终结，而是换了种形态。随着服务器搬到国外，过去那些**机械**的部分正逐步交给 agent。编排、调度、基本面请求由一个 **Hermes** agent + **Claude Code** 接管；**新闻则改用 Gemini API 的 *Grounding with Google Search*（`google_search` 工具，跑在 Gemini 3.5 上）实时搜索**，告别那套由不好用的免费 key 拼起来、动不动就掉链子的轮询管线。这一转向，让项目从"`git clone` 下来就能部署的仓库"变成了更接近"一套常驻运行的 agent 系统"的东西。所以这个 GitHub 版本之后会更新得少了——活跃的开发，正在迁往那套新的 agent 形态。
 
-但这套框架**教会我的东西**，比任何一次部署都活得更久——这些教训正在整理成一份设计回顾，等成型到可展示了再分享。
+但这套框架**教会我的东西**，比任何一次部署都活得更久——这些教训整理成了一份设计回顾：**[设计哲学 / Design Philosophy](docs/design-philosophy.md)**（中英双语）。
 
 下一代已经在成形了。与其说是告别，不如说是把接力棒交给接下来的东西。
 
