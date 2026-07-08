@@ -15,6 +15,8 @@ Three of them argue on stage: the bull **Zealot**, the profit-taking **Reaper**,
 
 In October 2025 I had a hunch the market would drop, but I couldn't read it well myself and couldn't be bothered to chew through the data — so I figured I'd cobble together an agent to watch it for me. I thought it'd be simple: dump the data and news on the AI, and surely its analysis wouldn't go off the rails — I even had it work out an options play while it was at it. Actually building it, reality turned out absurdly more complicated; to this day I'm still polishing the most basic thing of all — getting it to truly *understand* a single stock.
 
+A quick aside on the name: "Apex Quant" came from Gemini — I described the idea and asked it to name the thing; it offered a few, and I picked this one. From there I kept the naming rule as a series: the frontend is **apex dash** (dashboard), the original Claude Code parallel version was **apex codex**, and this repo is **apex parliament** — a parliament, a roundtable, which is exactly what this three-way debate is.
+
 ## 🗣️ Talking ≠ doing
 
 LLMs taught me finance, so I naively assumed they could trade by nature — instead it carried an analyst's vocabulary while trading like a retail gambler: chasing pumps and dumps, apologizing the instant it got pushed back on. Every piece of architecture that followed is, at bottom, patching the seam between "can talk" and "can do."
@@ -131,6 +133,8 @@ Questions and discussion welcome: **sst19910323@gmail.com**
 ## 🌱 缘起：本来只想偷个懒
 
 2025 年 10 月，我觉得大盘要跌，可自己看不准、又懒得啃数据，就想搓个 agent 替我盯着。当时想得特别简单：把数据和新闻一股脑喂给 AI，它分析完总不至于出岔子吧——我甚至顺手让它把期权方案也一块算了。真做下去才发现现实复杂得离谱；直到今天，我都还在打磨它"看懂一只股票"这件最基本的事。
+
+顺带说个名字的趣事：Apex Quant 这名字是 Gemini 取的——我把想法讲给它、让它起名，它给了几个候选，我挑了这个。后来干脆把这条命名规则延续成了一个系列：前端叫 **apex dash**（dashboard），当初那个 Claude Code 平行版叫 **apex codex**，而这个仓库叫 **apex parliament**——议会、圆桌，正好就是这套三方辩论的样子。
 
 ## 🗣️ 会说 ≠ 会做
 
