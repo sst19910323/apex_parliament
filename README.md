@@ -402,11 +402,11 @@ Key milestones along the way — from an overconfident single agent to the curre
 
 ## 🌱 Where This Edition Is Headed
 
-This isn't an ending — it's a change of form. As the server moves overseas, the parts that used to be *mechanical* are moving to agents. A **Hermes** agent + **Claude Code** now handle orchestration, scheduling, and fundamentals requests, while **news is searched live through the Gemini API's *Grounding with Google Search*** (the `google_search` tool, on Gemini 3.5) — no more polling through brittle pipelines of unreliable free API keys. That shift turns the project from "a repo you `git clone` and deploy" into something closer to a running agent system. So this GitHub edition will see fewer updates from here on, as active development moves into that new agent-based form.
+This isn't an ending — it's a change of form. The system has been reshaped into something **agent-native**: the Claude-Code `apex_codex` layer merged back into `apex_quant`, storage moved to **Postgres**, news is now searched live via the Gemini API's *Grounding with Google Search*, and orchestration runs through agents — a **Hermes** heartbeat waking **Claude Code**, with a parallel **GPT Codex** dispatch path, and skills that can copy themselves from the server onto a fresh machine.
 
-What the framework *taught* me, though, outlives any one deployment — those lessons are written up as a design retrospective: **[Design Philosophy / 设计哲学](docs/design-philosophy.md)** (bilingual).
+So "deployment" now means something different: instead of wiring up an environment by hand, you **hand the repo to Claude Code or GPT Codex and let it set everything up**. This edition leans on agents by design.
 
-The next iteration is already taking shape. Less a goodbye than a handoff to what comes next.
+This snapshot mainly records what the recent stretch of work has been; what the framework *taught* me is written up separately as **[Design Philosophy / 设计哲学](docs/design-philosophy.md)** (bilingual). Once things settle it may come back to life here — or spin off into a new project.
 
 ---
 
@@ -820,11 +820,11 @@ apex_parliament/
 
 ## 🌱 这个版本的去向
 
-这不是终结，而是换了种形态。随着服务器搬到国外，过去那些**机械**的部分正逐步交给 agent。编排、调度、基本面请求由一个 **Hermes** agent + **Claude Code** 接管；**新闻则改用 Gemini API 的 *Grounding with Google Search*（`google_search` 工具，跑在 Gemini 3.5 上）实时搜索**，告别那套由不好用的免费 key 拼起来、动不动就掉链子的轮询管线。这一转向，让项目从"`git clone` 下来就能部署的仓库"变成了更接近"一套常驻运行的 agent 系统"的东西。所以这个 GitHub 版本之后会更新得少了——活跃的开发，正在迁往那套新的 agent 形态。
+这不是终结，而是换了种形态——整套系统被重塑成了 **agent 原生**的样子：原先那层 Claude Code 版 `apex_codex` 已并回 `apex_quant`，存储转到 **Postgres**，新闻改用 Gemini API 的 *Grounding with Google Search* 实时搜索；编排与调度都交给 agent —— 一个 **Hermes** 心跳唤醒 **Claude Code**，另有一条并行的 **GPT Codex** 通路，连辩论 / 复盘的 skill 都能从服务器自拷到一台新机器上。
 
-但这套框架**教会我的东西**，比任何一次部署都活得更久——这些教训整理成了一份设计回顾：**[设计哲学 / Design Philosophy](docs/design-philosophy.md)**（中英双语）。
+于是"部署"变成了另一回事：不再手工搭环境，而是**把仓库丢给 Claude Code 或 GPT Codex，让它自己把一切装好**。这一版从设计上就重度依赖 agent。
 
-下一代已经在成形了。与其说是告别，不如说是把接力棒交给接下来的东西。
+这份快照主要是记录这一阵子做了什么；框架**教会我的东西**另作整理：**[设计哲学 / Design Philosophy](docs/design-philosophy.md)**（中英双语）。等一切安顿下来，它也许会在这里复活，也许另开一个新坑。
 
 ---
 
