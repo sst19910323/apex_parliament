@@ -406,6 +406,8 @@ This isn't an ending — it's a change of form. The system has been reshaped int
 
 So "deployment" now means something different: instead of wiring up an environment by hand, you **hand the repo to Claude Code or GPT Codex and let it set everything up**. This edition leans on agents by design.
 
+A couple of specifics: the debate itself has moved to **v2** — two advocates plus an **Arbiter**, with the old **Fulcrum** damper retired (see the design notes). All outputs now write **finally to Postgres** — the JSON/CSV file dumps are gone, so the file-based examples further down reflect the earlier **v1** edition. The dashboard **still renders the old (v1) view** for now; the v2 display update comes later. (v1 is preserved on its own `v1` branch.)
+
 This snapshot mainly records what the recent stretch of work has been; what the framework *taught* me is written up separately as **[Design Philosophy / 设计哲学](docs/design-philosophy.md)** (bilingual). Once things settle it may come back to life here — or spin off into a new project.
 
 ---
@@ -823,6 +825,8 @@ apex_parliament/
 这不是终结，而是换了种形态——整套系统被重塑成了 **agent 原生**的样子：原先那层 Claude Code 版 `apex_codex` 已并回 `apex_quant`，存储转到 **Postgres**，新闻改用 Gemini API 的 *Grounding with Google Search* 实时搜索；编排与调度都交给 agent —— 一个 **Hermes** 心跳唤醒 **Claude Code**，另有一条并行的 **GPT Codex** 通路，连辩论 / 复盘的 skill 都能从服务器自拷到一台新机器上。
 
 于是"部署"变成了另一回事：不再手工搭环境，而是**把仓库丢给 Claude Code 或 GPT Codex，让它自己把一切装好**。这一版从设计上就重度依赖 agent。
+
+两点具体说明：辩论本身已进到 **v2** —— 二元辩手 + **仲裁者 Arbiter**，旧的阻尼器 **Fulcrum** 已退役（详见设计哲学）。所有产出现已**最终写入 Postgres**——JSON/CSV 文件输出取消，所以下文那些基于文件的示例是更早的 **v1** 版。展示前端（看板）**暂时仍是旧版**，v2 界面之后再更新。（v1 已封存在独立的 `v1` 分支。）
 
 这份快照主要是记录这一阵子做了什么；框架**教会我的东西**另作整理：**[设计哲学 / Design Philosophy](docs/design-philosophy.md)**（中英双语）。等一切安顿下来，它也许会在这里复活，也许另开一个新坑。
 
