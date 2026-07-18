@@ -10,7 +10,7 @@
 
 ---
 
-Apex Quant is an LLM-based multi-agent framework for quantitative analysis. Before any decision is emitted, agents holding **opposing stances** must complete a structured debate. Most multi-agent trading frameworks split agents by **data type** (fundamentals, sentiment, technicals); Apex Quant splits them by **stance**. The framework is market-agnostic; the current implementation covers US / EU / JP equities.
+Apex Quant is an LLM-based multi-agent framework for quantitative analysis. Before any decision is emitted, agents holding **opposing stances** must complete a structured debate. Most multi-agent trading frameworks split agents by **data type** (fundamentals, sentiment, technicals); Apex Quant splits them by **stance**. The framework is market-agnostic; the current implementation covers US / EU / JP / KR equities.
 
 > **This is the v2 edition.** The debate was reshaped after a data-driven post-mortem: two advocates + an arbiter, backed by Postgres and run agent-natively. The original three-debater, file-based v1 is archived in [`README-v1.md`](README-v1.md) and frozen on the [`v1` branch](../../tree/v1).
 >
@@ -45,17 +45,18 @@ Apex Quant is an LLM-based multi-agent framework for quantitative analysis. Befo
 
 ---
 
-## 🗄️ Data & infrastructure
+## 🗄️ Data, search & runners
 
 All state now lives in **PostgreSQL** — technicals, news, reports, economic indicators, sentiment, and postcheck. The earlier on-disk JSON / CSV outputs are gone.
 
-| Data | Source |
+| Data | How it's obtained |
 |---|---|
-| Prices, multi-timeframe candlesticks, peer data | **Interactive Brokers (IBKR)** |
-| Macro indicators | Alpha Vantage |
-| Company fundamentals | Alpha Vantage / Finnhub |
-| News search | **Gemini API — Grounding with Google Search**, plus native search on the Claude Code / GPT Codex runners |
-| Fear & Greed / VIX | CNN Fear & Greed Index |
+| Prices, multi-timeframe candlesticks, peer data | **Interactive Brokers (IBKR)** — the one deterministic leg |
+| Stock news | **US:** Finnhub (the init leg). **EU / JP / KR:** Linkup (the API-version leg) *or* agent web-search on the Claude Code / GPT Codex runners |
+| Macro & company fundamentals | increasingly **agent-searched** (Alpha Vantage / a PG cache remain as fallback) |
+| Market sentiment (Fear & Greed / VIX) | **per region** — CNN Fear & Greed for the US, with regional equivalents for EU / JP / KR |
+
+**Three runners, one architecture.** The same debate-and-postcheck logic runs in three variants: an **API version** (DeepSeek for the agents + Linkup or Gemini grounding for search), a **Claude Code version**, and a **GPT Codex version**. In practice AI still rewards raw power — my self-built DeepSeek + Linkup search turned out *far* worse than Claude / GPT with **native search**. So the CC and Codex versions are now the main runners (the API version is kept as a fallback), and it isn't only data-fetching that leans on agent search — the **core debate and postcheck themselves** run on the agents.
 
 **Agent-native "deployment."** There's no `git clone && deploy` anymore: you **hand the repo to Claude Code or GPT Codex and let it set everything up**. Orchestration runs through agents — a **Hermes** heartbeat wakes Claude Code on schedule; a parallel **GPT Codex** dispatch path exists; and the debate / postcheck skills can copy themselves from the server onto a fresh machine. This edition leans on agents by design, which is also why it's less of a turnkey repo than v1 was.
 
@@ -128,7 +129,7 @@ Questions and discussion welcome: **sst19910323@gmail.com**
 
 ---
 
-Apex Quant 是一个基于大语言模型的多智能体量化分析框架。在给出任何决策之前，持**对立立场**的 agent 必须先完成一场结构化辩论。多数多智能体交易框架按**数据类型**分工（基本面、情绪、技术面），而 Apex Quant 按**立场**分工。框架本身与市场无关，当前实现覆盖美股 / 欧股 / 日股。
+Apex Quant 是一个基于大语言模型的多智能体量化分析框架。在给出任何决策之前，持**对立立场**的 agent 必须先完成一场结构化辩论。多数多智能体交易框架按**数据类型**分工（基本面、情绪、技术面），而 Apex Quant 按**立场**分工。框架本身与市场无关，当前实现覆盖美股 / 欧股 / 日股 / 韩股。
 
 > **这是 v2 版。** 辩论结构经过一次数据驱动的复盘后被重塑：二元辩手 + 一位仲裁者，底层转 Postgres，以 agent 原生方式运行。最初那套三辩手、基于文件的 v1 已存档在 [`README-v1.md`](README-v1.md)，并冻结在 [`v1` 分支](../../tree/v1)。
 >
@@ -163,17 +164,18 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架。在
 
 ---
 
-## 🗄️ 数据与基础设施
+## 🗄️ 数据、搜索与运行版本
 
 所有状态现已存入 **PostgreSQL** —— 技术指标、新闻、报告、经济指标、情绪、后验。此前的 JSON / CSV 文件输出已取消。
 
-| 数据 | 来源 |
+| 数据 | 怎么取 |
 |---|---|
-| 行情、多时间尺度 K 线、同业数据 | **盈透（IBKR）** |
-| 宏观指标 | Alpha Vantage |
-| 公司基本面 | Alpha Vantage / Finnhub |
-| 新闻搜索 | **Gemini API —— Grounding with Google Search**，外加 Claude Code / GPT Codex runner 的原生搜索 |
-| 恐慌贪婪 / VIX | CNN Fear & Greed Index |
+| 行情、多时间尺度 K 线、同业数据 | **盈透（IBKR）** —— 唯一确定性的一条腿 |
+| 个股新闻 | **美股：** Finnhub（init 腿）。**欧 / 日 / 韩：** Linkup（API 版那条腿）*或* Claude Code / GPT Codex runner 的 agent 联网搜索 |
+| 宏观与公司基本面 | 越来越靠 **agent 搜索**（Alpha Vantage / PG 缓存留作兜底） |
+| 市场情绪（Fear & Greed / VIX） | **分区** —— 美股用 CNN Fear & Greed，欧 / 日 / 韩各有对应的区域指标 |
+
+**三个运行版本，同一套架构。** 同一套"辩论 + 后验"逻辑跑在三个版本里：**API 版**（agent 用 DeepSeek、搜索用 Linkup 或 Gemini grounding）、**Claude Code 版**、**GPT Codex 版**。实践下来 AI 到底还是讲究"力大砖飞"—— 我自己搭的 DeepSeek + Linkup 搜索，比 Claude / GPT 的**原生搜索**差很多。所以如今主力是 CC 版和 Codex 版（API 版留作兜底）；而且不只是取数靠 agent 搜索，**核心的辩论与后验本身也跑在 agent 上**。
 
 **agent 原生的"部署"。** 不再是 `git clone && 部署`：而是**把仓库交给 Claude Code 或 GPT Codex，让它自己把一切装好**。编排交给 agent —— 一个 **Hermes** 心跳按点唤醒 Claude Code；另有一条并行的 **GPT Codex** 通路；辩论 / 后验的 skill 还能从服务器自拷到一台新机器。这一版从设计上就重度依赖 agent，这也是它不像 v1 那样开箱即用的原因。
 
