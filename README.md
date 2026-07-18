@@ -16,6 +16,8 @@ Apex Quant is an LLM-based multi-agent framework for quantitative analysis. Befo
 >
 > **→ Read the [Design Philosophy / 设计哲学](docs/design-philosophy.md)** (bilingual) for the whole story — including *why* v1 became v2.
 
+> **A note on scope:** the v2 code isn't published here (yet). It's Postgres-backed and split across three parallel runners (API / Claude Code / GPT Codex), which makes it a real chore to untangle and scrub for release. So for now this repo open-sources the **thinking** — the design philosophy and this README — while the runnable reference code is the archived **v1**.
+
 > **Language note:** prompts, debate transcripts, and analysis output are Chinese-only for now. A dedicated translation layer that renders each final report into other languages is planned as a clean downstream step.
 
 ---
@@ -134,6 +136,8 @@ Apex Quant 是一个基于大语言模型的多智能体量化分析框架。在
 > **这是 v2 版。** 辩论结构经过一次数据驱动的复盘后被重塑：二元辩手 + 一位仲裁者，底层转 Postgres，以 agent 原生方式运行。最初那套三辩手、基于文件的 v1 已存档在 [`README-v1.md`](README-v1.md)，并冻结在 [`v1` 分支](../../tree/v1)。
 >
 > **→ 完整来龙去脉（包括*为什么*从 v1 走到 v2）见 [设计哲学 / Design Philosophy](docs/design-philosophy.md)**（中英双语）。
+
+> **关于范围：** v2 的代码暂未在此公开。它已转 Postgres、又拆成三个平行运行版本（API / Claude Code / GPT Codex），整理、脱敏、打包成可发布的样子相当麻烦。所以这个仓库眼下开源的是**思路**——设计哲学和这份 README——而可运行的参考代码，是存档的 **v1**。
 
 > **语言说明：** prompt、辩论记录与分析输出目前仅中文。计划在下游单设一层翻译，把每份终报干净地渲染成其他语言。
 
